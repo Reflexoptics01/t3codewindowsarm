@@ -55,6 +55,7 @@ import {
   useSavedEnvironmentRegistryStore,
 } from "../environments/runtime";
 import { configureClientTracing } from "../observability/clientTracing";
+import { useNavigationSwipeBack } from "../hooks/useNavigationSwipeBack";
 import {
   ensurePrimaryEnvironmentReady,
   getPrimaryKnownEnvironment,
@@ -103,6 +104,8 @@ function RootRouteView() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
   const primaryEnvironmentAuthenticated = authGateState.status === "authenticated";
+
+  useNavigationSwipeBack();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {

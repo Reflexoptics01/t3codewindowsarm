@@ -198,6 +198,8 @@ import {
   type SidebarProjectSnapshot,
 } from "../sidebarProjectGrouping";
 import { SidebarProviderUpdatePill } from "./sidebar/SidebarProviderUpdatePill";
+import { UsageAggregateMeter } from "./UsageAggregateMeter";
+import { useUsageAggregateStore } from "../stores/usageAggregateStore";
 const SIDEBAR_SORT_LABELS: Record<SidebarProjectSortOrder, string> = {
   updated_at: "Last user message",
   created_at: "Created at",
@@ -2490,6 +2492,10 @@ const SidebarChromeHeader = memo(function SidebarChromeHeader({
 const SidebarChromeFooter = memo(function SidebarChromeFooter() {
   const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const usageSnapshot = useUsageAggregateStore((state) =>
+    primaryEnvironmentId ? state.byEnvironmentId[primaryEnvironmentId] : undefined,
+  );
   const handleSettingsClick = useCallback(() => {
     if (isMobile) {
       setOpenMobile(false);
@@ -2501,6 +2507,11 @@ const SidebarChromeFooter = memo(function SidebarChromeFooter() {
     <SidebarFooter className="p-2">
       <SidebarProviderUpdatePill />
       <SidebarUpdatePill />
+      {usageSnapshot ? (
+        <div className="mb-1 px-1">
+          <UsageAggregateMeter snapshot={usageSnapshot} compact />
+        </div>
+      ) : null}
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton

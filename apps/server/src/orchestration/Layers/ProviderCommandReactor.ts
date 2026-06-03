@@ -809,20 +809,69 @@ const make = Effect.gen(function* () {
     if (!thread) {
       return;
     }
-    const hasSession = thread.session && thread.session.status !== "stopped";
-    if (!hasSession) {
+
+    const now = event.payload.createdAt;
+    const turnId =
+      event.payload.turnId ?? thread.session?.activeTurnId ?? thread.latestTurn?.turnId ?? null;
+    const hasProjectedSession = thread.session && thread.session.status !== "stopped";
+    if (!hasProjectedSession) {
       return yield* appendProviderFailureActivity({
         threadId: event.payload.threadId,
         kind: "provider.turn.interrupt.failed",
         summary: "Provider turn interrupt failed",
         detail: "No active provider session is bound to this thread.",
-        turnId: event.payload.turnId ?? null,
-        createdAt: event.payload.createdAt,
+        turnId,
+        createdAt: now,
       });
     }
 
-    // Orchestration turn ids are not provider turn ids, so interrupt by session.
-    yield* providerService.interruptTurn({ threadId: event.payload.threadId });
+    const activeSession = yield* providerService
+      .listSessions()
+      .pipe(
+        Effect.map((sessions) => sessions.find((session) => session.threadId === event.payload.threadId)),
+      );
+
+    if (activeSession) {
+      yield* providerService
+        .interruptTurn({
+          threadId: event.payload.threadId,
+          ...(turnId !== null ? { turnId } : {}),
+        })
+        .pipe(
+          Effect.catchCause((cause) =>
+            appendProviderFailureActivity({
+              threadId: event.payload.threadId,
+              kind: "provider.turn.interrupt.failed",
+              summary: "Provider turn interrupt failed",
+              detail: Cause.pretty(cause),
+              turnId,
+              createdAt: now,
+            }),
+          ),
+        );
+      return;
+    }
+
+    if (thread.session?.status !== "running") {
+      return;
+    }
+
+    yield* setThreadSession({
+      threadId: thread.id,
+      session: {
+        threadId: thread.id,
+        status: "ready",
+        providerName: thread.session.providerName ?? null,
+        ...(thread.session.providerInstanceId !== undefined
+          ? { providerInstanceId: thread.session.providerInstanceId }
+          : {}),
+        runtimeMode: thread.session.runtimeMode,
+        activeTurnId: null,
+        lastError: thread.session.lastError ?? null,
+        updatedAt: now,
+      },
+      createdAt: now,
+    });
   });
 
   const processApprovalResponseRequested = Effect.fn("processApprovalResponseRequested")(function* (

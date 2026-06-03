@@ -21,6 +21,7 @@ import {
   TurnId,
 } from "./baseSchemas.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
+import { UsageAggregateSnapshot } from "./usageAggregate.ts";
 
 export const ORCHESTRATION_WS_METHODS = {
   dispatchCommand: "orchestration.dispatchCommand",
@@ -30,6 +31,7 @@ export const ORCHESTRATION_WS_METHODS = {
   getArchivedShellSnapshot: "orchestration.getArchivedShellSnapshot",
   subscribeShell: "orchestration.subscribeShell",
   subscribeThread: "orchestration.subscribeThread",
+  subscribeUsageAggregate: "orchestration.subscribeUsageAggregate",
 } as const;
 
 export const ProviderApprovalPolicy = Schema.Literals([
@@ -1234,6 +1236,10 @@ export const OrchestrationRpcSchemas = {
   subscribeShell: {
     input: Schema.Struct({}),
     output: OrchestrationShellStreamItem,
+  },
+  subscribeUsageAggregate: {
+    input: Schema.Struct({}),
+    output: UsageAggregateSnapshot,
   },
 } as const;
 

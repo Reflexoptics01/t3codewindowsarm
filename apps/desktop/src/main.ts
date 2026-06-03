@@ -46,7 +46,7 @@ import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
 
-import { FORK_DESKTOP_PRODUCT_NAME } from "../../../scripts/lib/fork-branding.ts";
+import { FORK_DESKTOP_PRODUCT_NAME } from "./forkBranding.ts";
 
 const readPackagedAppBaseName = Effect.fn("desktop.main.readPackagedAppBaseName")(function* (
   appPath: string,

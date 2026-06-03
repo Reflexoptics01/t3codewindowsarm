@@ -20,7 +20,7 @@ import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
 import {
   FORK_DESKTOP_PRODUCT_NAME,
   FORK_WEB_APP_BASE_NAME,
-} from "../../../scripts/lib/fork-branding.ts";
+} from "../forkBranding.ts";
 
 export interface MakeDesktopEnvironmentInput {
   readonly dirname: string;

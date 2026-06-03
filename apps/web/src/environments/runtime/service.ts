@@ -71,6 +71,7 @@ import {
 } from "~/store";
 import { useTerminalUiStateStore } from "~/terminalUiStateStore";
 import { useUiStateStore } from "~/uiStateStore";
+import { useUsageAggregateStore } from "~/stores/usageAggregateStore";
 import { getServerConfig } from "../../rpc/serverState";
 import { WsTransport } from "~/rpc/wsTransport";
 import { appendVersionMismatchHint, resolveServerConfigVersionMismatch } from "../../versionSkew";
@@ -1124,6 +1125,9 @@ function createEnvironmentConnectionHandlers() {
       );
       reconcileThreadDetailSubscriptionEvictionForEnvironment(environmentId);
       reconcileSnapshotDerivedState();
+    },
+    onUsageAggregateSnapshot: (snapshot, environmentId) => {
+      useUsageAggregateStore.getState().setSnapshot(environmentId, snapshot);
     },
   };
 }

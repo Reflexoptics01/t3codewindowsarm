@@ -5,6 +5,7 @@ import type {
   ServerConfig,
   ServerLifecycleWelcomePayload,
   TerminalEvent,
+  UsageAggregateSnapshot,
 } from "@t3tools/contracts";
 
 import type { KnownEnvironment } from "./knownEnvironment.ts";
@@ -40,6 +41,10 @@ export interface EnvironmentConnectionInput extends OrchestrationHandlers {
   readonly onConfigSnapshot?: (config: ServerConfig) => void;
   readonly onWelcome?: (payload: ServerLifecycleWelcomePayload) => void;
   readonly onShellResubscribe?: (environmentId: EnvironmentId) => void;
+  readonly onUsageAggregateSnapshot?: (
+    snapshot: UsageAggregateSnapshot,
+    environmentId: EnvironmentId,
+  ) => void;
 }
 
 export interface EnvironmentConnectionAttempt {
@@ -191,6 +196,14 @@ export function createEnvironmentConnection(
     },
   );
 
+  const unsubUsageAggregate = input.onUsageAggregateSnapshot
+    ? input.client.orchestration.subscribeUsageAggregate((snapshot) => {
+        if (!disposed) {
+          input.onUsageAggregateSnapshot?.(snapshot, environmentId);
+        }
+      })
+    : () => undefined;
+
   const unsubTerminalEvent = input.applyTerminalEvent
     ? input.client.terminal.onEvent((event) => {
         if (!disposed) {
@@ -207,6 +220,7 @@ export function createEnvironmentConnection(
     disposed = true;
     bootstrapGate.reject(new EnvironmentConnectionDisposedError(environmentId));
     unsubShell();
+    unsubUsageAggregate();
     unsubTerminalEvent();
     unsubLifecycle();
     unsubConfig();
