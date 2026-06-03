@@ -39,25 +39,14 @@ import {
   type ProviderInstance,
 } from "../ProviderDriver.ts";
 import type { ServerProviderDraft } from "../providerSnapshot.ts";
+import { makeCursorProviderMaintenanceResolver } from "../cursorProviderMaintenance.ts";
 import { mergeProviderInstanceEnvironment } from "../ProviderInstanceEnvironment.ts";
-import {
-  makeProviderMaintenanceCapabilities,
-  makeStaticProviderMaintenanceResolver,
-  resolveProviderMaintenanceCapabilitiesEffect,
-} from "../providerMaintenance.ts";
+import { resolveProviderMaintenanceCapabilitiesEffect } from "../providerMaintenance.ts";
 const decodeCursorSettings = Schema.decodeSync(CursorSettings);
 
 const DRIVER_KIND = ProviderDriverKind.make("cursor");
 const SNAPSHOT_REFRESH_INTERVAL = Duration.minutes(5);
-const UPDATE = makeStaticProviderMaintenanceResolver(
-  makeProviderMaintenanceCapabilities({
-    provider: DRIVER_KIND,
-    packageName: null,
-    updateExecutable: "agent",
-    updateArgs: ["update"],
-    updateLockKey: "cursor-agent",
-  }),
-);
+const UPDATE = makeCursorProviderMaintenanceResolver();
 
 export type CursorDriverEnv =
   | ChildProcessSpawner.ChildProcessSpawner

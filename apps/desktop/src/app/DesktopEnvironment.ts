@@ -17,6 +17,10 @@ import {
 } from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
+import {
+  FORK_DESKTOP_PRODUCT_NAME,
+  FORK_WEB_APP_BASE_NAME,
+} from "../../../scripts/lib/fork-branding.ts";
 
 export interface MakeDesktopEnvironmentInput {
   readonly dirname: string;
@@ -82,7 +86,7 @@ export class DesktopEnvironment extends Context.Service<
   DesktopEnvironmentShape
 >()("@t3tools/desktop/app/DesktopEnvironment") {}
 
-const APP_BASE_NAME = "T3 Code";
+const APP_BASE_NAME = FORK_WEB_APP_BASE_NAME;
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;
@@ -102,7 +106,12 @@ function resolveDesktopAppBranding(input: {
 }): DesktopAppBranding {
   const stageLabel = resolveDesktopAppStageLabel(input);
   const baseName = input.appBaseName?.trim() || APP_BASE_NAME;
-  const displayName = baseName === APP_BASE_NAME ? `${baseName} (${stageLabel})` : baseName;
+  const displayName =
+    baseName === FORK_WEB_APP_BASE_NAME
+      ? FORK_DESKTOP_PRODUCT_NAME
+      : baseName === APP_BASE_NAME
+        ? `${baseName} (${stageLabel})`
+        : baseName;
   return {
     baseName,
     stageLabel,
@@ -199,7 +208,8 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
   });
   const displayName = branding.displayName;
   const stateDir = path.join(baseDir, isDevelopment ? "dev" : "userdata");
-  const isArm64Fork = branding.baseName === "ARM64";
+  const isArm64Fork =
+    branding.baseName === FORK_DESKTOP_PRODUCT_NAME || branding.baseName === FORK_WEB_APP_BASE_NAME;
   const userDataDirName = isDevelopment ? "t3code-dev" : isArm64Fork ? "arm64" : "t3code";
   const legacyUserDataDirName = isDevelopment
     ? "T3 Code (Dev)"

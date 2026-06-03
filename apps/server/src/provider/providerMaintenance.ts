@@ -175,8 +175,22 @@ function makeHomebrewProviderMaintenanceCapabilities(
   });
 }
 
+function getCommandBasename(commandPath: string): string {
+  const normalized = normalizeCommandPath(commandPath);
+  const fileName = normalized.slice(normalized.lastIndexOf("/") + 1);
+  return fileName.replace(/\.(exe|cmd|bat)$/i, "");
+}
+
+function matchesNativeUpdateExecutable(
+  commandPath: string,
+  nativeExecutable: string,
+): boolean {
+  return getCommandBasename(commandPath) === nativeExecutable;
+}
+
 function makeNativeProviderMaintenanceCapabilities(
   definition: PackageManagedProviderMaintenanceDefinition,
+  resolvedExecutable?: string,
 ): ProviderMaintenanceCapabilities | null {
   if (!definition.nativeUpdate) {
     return null;
@@ -185,7 +199,7 @@ function makeNativeProviderMaintenanceCapabilities(
   return makeProviderMaintenanceCapabilities({
     provider: definition.provider,
     packageName: definition.npmPackageName,
-    updateExecutable: definition.nativeUpdate.executable,
+    updateExecutable: resolvedExecutable ?? definition.nativeUpdate.executable,
     updateArgs: definition.nativeUpdate.args,
     updateLockKey: definition.nativeUpdate.lockKey,
   });
@@ -223,7 +237,9 @@ function isNpmGlobalCommandPath(commandPath: string): boolean {
   return (
     normalized.includes("/node_modules/.bin/") ||
     normalized.includes("/lib/node_modules/") ||
-    normalized.includes("/npm/node_modules/")
+    normalized.includes("/npm/node_modules/") ||
+    normalized.includes("/appdata/roaming/npm/") ||
+    normalized.includes("/programs/nodejs/")
   );
 }
 
@@ -267,8 +283,11 @@ export function resolvePackageManagedProviderMaintenance(
       nativeUpdate &&
       commandPaths.some((commandPath) => nativeUpdate.isCommandPath(commandPath))
     ) {
+      const matchedPath =
+        commandPaths.find((commandPath) => nativeUpdate.isCommandPath(commandPath)) ??
+        resolvedCommandPath;
       return (
-        makeNativeProviderMaintenanceCapabilities(definition) ??
+        makeNativeProviderMaintenanceCapabilities(definition, matchedPath) ??
         makeNpmGlobalProviderMaintenanceCapabilities(definition)
       );
     }
@@ -286,6 +305,21 @@ export function resolvePackageManagedProviderMaintenance(
     }
     if (commandPaths.some(isHomebrewCommandPath)) {
       return makeHomebrewProviderMaintenanceCapabilities(definition);
+    }
+    if (
+      nativeUpdate &&
+      commandPaths.some((commandPath) =>
+        matchesNativeUpdateExecutable(commandPath, nativeUpdate.executable),
+      )
+    ) {
+      const matchedPath =
+        commandPaths.find((commandPath) =>
+          matchesNativeUpdateExecutable(commandPath, nativeUpdate.executable),
+        ) ?? resolvedCommandPath;
+      return (
+        makeNativeProviderMaintenanceCapabilities(definition, matchedPath) ??
+        makeNpmGlobalProviderMaintenanceCapabilities(definition)
+      );
     }
   }
 

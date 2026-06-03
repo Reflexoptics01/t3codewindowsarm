@@ -6,6 +6,11 @@ import serverPackageJson from "../apps/server/package.json" with { type: "json" 
 
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
 import { getDefaultBuildArch } from "./lib/build-target-arch.ts";
+import {
+  resolveForkDesktopAppId,
+  resolveForkDesktopIconVariant,
+  resolveForkDesktopProductName,
+} from "./lib/fork-branding.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
@@ -592,8 +597,7 @@ export function resolveDesktopUpdateChannel(version: string): "latest" | "nightl
 }
 
 export function resolveDesktopIconVariant(): "arm64" | null {
-  const variant = process.env.T3CODE_DESKTOP_ICON_VARIANT?.trim().toLowerCase();
-  return variant === "arm64" ? "arm64" : null;
+  return resolveForkDesktopIconVariant();
 }
 
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
@@ -626,23 +630,19 @@ export function resolveMockUpdateServerUrl(mockUpdateServerPort: number | undefi
 }
 
 export function resolveDesktopProductName(version: string): string {
-  const override = process.env.T3CODE_DESKTOP_PRODUCT_NAME?.trim();
-  if (override) {
-    return override;
+  if (process.env.T3CODE_DESKTOP_PRODUCT_NAME?.trim()) {
+    return resolveForkDesktopProductName();
   }
 
-  return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "T3 Code (Nightly)"
-    : (desktopPackageJson.productName ?? "T3 Code");
+  if (resolveDesktopUpdateChannel(version) === "nightly") {
+    return "T3 Code (Nightly)";
+  }
+
+  return resolveForkDesktopProductName();
 }
 
-export function resolveDesktopAppId(version: string): string {
-  const override = process.env.T3CODE_DESKTOP_APP_ID?.trim();
-  if (override) {
-    return override;
-  }
-
-  return "com.t3tools.t3code";
+export function resolveDesktopAppId(_version: string): string {
+  return resolveForkDesktopAppId();
 }
 
 export function resolveDesktopArtifactName(version: string): string {
@@ -710,7 +710,7 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.npmRebuild = false;
     const winConfig: Record<string, unknown> = {
       target: [target],
-      icon: iconAssets.windowsIconPng ? "icon.png" : "icon.ico",
+      icon: "icon.ico",
     };
     if (signed) {
       winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
@@ -742,7 +742,6 @@ const assertPlatformBuildResources = Effect.fn("assertPlatformBuildResources")(f
   if (platform === "win") {
     if (iconAssets.windowsIconPng) {
       yield* stageWindowsIconsFromPng(stageResourcesDir, iconAssets.windowsIconPng);
-      return;
     }
 
     yield* stageWindowsIcons(stageResourcesDir, iconAssets.windowsIconIco);

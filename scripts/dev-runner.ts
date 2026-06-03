@@ -216,6 +216,9 @@ export function createDevRunnerEnv({
       delete output.T3CODE_DESKTOP_WS_URL;
     }
 
+    output.T3CODE_DESKTOP_PRODUCT_NAME = "ARM64";
+    output.T3CODE_DESKTOP_ICON_VARIANT = "arm64";
+
     return output;
   });
 }

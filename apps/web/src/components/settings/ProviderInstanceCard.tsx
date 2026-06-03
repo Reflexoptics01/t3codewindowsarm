@@ -423,6 +423,7 @@ interface ProviderInstanceCardProps {
   readonly onModelOrderChange: (next: ReadonlyArray<string>) => void;
   readonly onRunUpdate?: (() => void) | undefined;
   readonly isUpdating?: boolean | undefined;
+  readonly maintenanceMode?: "install" | "update" | undefined;
 }
 
 /**
@@ -467,6 +468,7 @@ export function ProviderInstanceCard({
   onModelOrderChange,
   onRunUpdate,
   isUpdating = false,
+  maintenanceMode = "update",
 }: ProviderInstanceCardProps) {
   const enabled = instance.enabled ?? true;
   // The server-reported status wins when present; otherwise fall back to
@@ -486,6 +488,14 @@ export function ProviderInstanceCard({
   const versionLabel = getProviderVersionLabel(liveProvider?.version);
   const versionAdvisory = getProviderVersionAdvisoryPresentation(liveProvider?.versionAdvisory);
   const updateCommand = versionAdvisory?.updateCommand ?? null;
+  const maintenanceActionLabel =
+    maintenanceMode === "install"
+      ? isUpdating
+        ? "Installing"
+        : "Install now"
+      : isUpdating
+        ? "Updating"
+        : "Update now";
   const FallbackIconComponent = driverOption?.icon;
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
@@ -731,13 +741,13 @@ export function ProviderInstanceCard({
                           onClick={onRunUpdate}
                         >
                           {isUpdating ? <LoaderIcon className="animate-spin" /> : <DownloadIcon />}
-                          {isUpdating ? "Updating" : "Update now"}
+                          {maintenanceActionLabel}
                         </Button>
                       ) : null}
                       {onRunUpdate && updateCommand ? (
                         <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                           <span aria-hidden className="h-px flex-1 bg-border" />
-                          or, update manually using
+                          {maintenanceMode === "install" ? "or, install manually using" : "or, update manually using"}
                           <span aria-hidden className="h-px flex-1 bg-border" />
                         </div>
                       ) : null}
@@ -780,6 +790,18 @@ export function ProviderInstanceCard({
             {authRowNode}
           </div>
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
+            {onRunUpdate && maintenanceMode === "install" ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="default"
+                disabled={isUpdating}
+                onClick={onRunUpdate}
+              >
+                {isUpdating ? <LoaderIcon className="animate-spin" /> : <DownloadIcon />}
+                {maintenanceActionLabel}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="ghost"

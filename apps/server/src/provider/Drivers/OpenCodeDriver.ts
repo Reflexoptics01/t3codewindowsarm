@@ -53,11 +53,7 @@ const DRIVER_KIND = ProviderDriverKind.make("opencode");
 const SNAPSHOT_REFRESH_INTERVAL = Duration.minutes(5);
 
 function isOpenCodeNativeCommandPath(commandPath: string): boolean {
-  const normalized = normalizeCommandPath(commandPath);
-  return (
-    normalized.endsWith("/.opencode/bin/opencode") ||
-    normalized.endsWith("/.opencode/bin/opencode.exe")
-  );
+  return normalizeCommandPath(commandPath).includes("/.opencode/bin/opencode");
 }
 
 const UPDATE = makePackageManagedProviderMaintenanceResolver({

@@ -969,15 +969,19 @@ export function ProviderSettingsPanel() {
       });
   }, []);
 
-  const runProviderUpdate = useCallback(async (candidate: ProviderUpdateCandidate) => {
+  const runProviderUpdate = useCallback(
+    async (input: {
+      readonly driver: ProviderDriverKind;
+      readonly instanceId: ProviderInstanceId;
+    }) => {
     let started = false;
     setUpdatingProviderDrivers((previous) => {
-      if (previous.has(candidate.driver)) {
+      if (previous.has(input.driver)) {
         return previous;
       }
       started = true;
       const next = new Set(previous);
-      next.add(candidate.driver);
+      next.add(input.driver);
       return next;
     });
     if (!started) {
@@ -986,14 +990,14 @@ export function ProviderSettingsPanel() {
 
     try {
       await ensureLocalApi().server.updateProvider({
-        provider: candidate.driver,
-        instanceId: candidate.instanceId,
+        provider: input.driver,
+        instanceId: input.instanceId,
       });
     } catch (error) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Could not update ${PROVIDER_DISPLAY_NAMES[candidate.driver] ?? candidate.driver}`,
+          title: `Could not update ${PROVIDER_DISPLAY_NAMES[input.driver] ?? input.driver}`,
           description:
             error instanceof Error
               ? error.message
@@ -1002,11 +1006,11 @@ export function ProviderSettingsPanel() {
       );
     } finally {
       setUpdatingProviderDrivers((previous) => {
-        if (!previous.has(candidate.driver)) {
+        if (!previous.has(input.driver)) {
           return previous;
         }
         const next = new Set(previous);
-        next.delete(candidate.driver);
+        next.delete(input.driver);
         return next;
       });
     }
@@ -1238,20 +1242,30 @@ export function ProviderSettingsPanel() {
           const updateCandidate = liveProvider
             ? providerUpdateCandidateByInstanceId.get(liveProvider.instanceId)
             : undefined;
-          const isDriverUpdateRunning =
-            updateCandidate !== undefined &&
-            (updatingProviderDrivers.has(updateCandidate.driver) ||
-              serverProviders.some(
-                (provider) =>
-                  provider.driver === updateCandidate.driver && isProviderUpdateActive(provider),
-              ));
           const showInlineUpdateButton =
             updateCandidate !== undefined &&
             hasOneClickUpdateProviderCandidate(updateCandidate, serverProviders);
+          const canInstallProvider =
+            liveProvider !== undefined &&
+            liveProvider.enabled &&
+            !liveProvider.installed &&
+            liveProvider.versionAdvisory?.canUpdate === true &&
+            liveProvider.versionAdvisory.updateCommand !== null &&
+            !isProviderUpdateActive(liveProvider);
+          const showInlineInstallButton = canInstallProvider;
           const canRunInlineUpdate =
             updateCandidate !== undefined &&
             canOneClickUpdateProviderCandidate(updateCandidate, serverProviders) &&
             !updatingProviderDrivers.has(updateCandidate.driver);
+          const canRunInlineInstall =
+            canInstallProvider && !updatingProviderDrivers.has(row.driver);
+          const showInlineMaintenanceButton = showInlineUpdateButton || showInlineInstallButton;
+          const maintenanceMode = showInlineInstallButton ? "install" : "update";
+          const isDriverMaintenanceRunning =
+            updatingProviderDrivers.has(row.driver) ||
+            serverProviders.some(
+              (provider) => provider.driver === row.driver && isProviderUpdateActive(provider),
+            );
           const modelPreferences = settings.providerModelPreferences?.[row.instanceId] ?? {
             hiddenModels: [],
             modelOrder: [],
@@ -1315,16 +1329,30 @@ export function ProviderSettingsPanel() {
                 })
               }
               onRunUpdate={
-                showInlineUpdateButton && updateCandidate
+                showInlineMaintenanceButton
                   ? () => {
-                      if (!canRunInlineUpdate) {
+                      if (showInlineInstallButton) {
+                        if (!canRunInlineInstall) {
+                          return;
+                        }
+                        void runProviderUpdate({
+                          driver: row.driver,
+                          instanceId: row.instanceId,
+                        });
                         return;
                       }
-                      void runProviderUpdate(updateCandidate);
+                      if (!updateCandidate || !canRunInlineUpdate) {
+                        return;
+                      }
+                      void runProviderUpdate({
+                        driver: updateCandidate.driver,
+                        instanceId: updateCandidate.instanceId,
+                      });
                     }
                   : undefined
               }
-              isUpdating={showInlineUpdateButton ? isDriverUpdateRunning : undefined}
+              maintenanceMode={maintenanceMode}
+              isUpdating={showInlineMaintenanceButton ? isDriverMaintenanceRunning : undefined}
             />
           );
         })}

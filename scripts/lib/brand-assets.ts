@@ -26,9 +26,13 @@ export const BRAND_ASSET_PATHS = {
   arm64LinuxIconPng: "assets/arm64/arm64-universal-1024.png",
   arm64WindowsIconIco: "assets/arm64/arm64-windows.ico",
   arm64WindowsIconPng: "assets/arm64/arm64-universal-1024.png",
+  arm64WebFaviconIco: "assets/arm64/arm64-windows.ico",
+  arm64WebFavicon16Png: "assets/arm64/arm64-universal-1024.png",
+  arm64WebFavicon32Png: "assets/arm64/arm64-universal-1024.png",
+  arm64WebAppleTouchIconPng: "assets/arm64/arm64-universal-1024.png",
 } as const;
 
-export type WebAssetBrand = "development" | "nightly" | "production";
+export type WebAssetBrand = "development" | "nightly" | "production" | "arm64";
 
 export const WEB_ASSET_CHANNELS = ["latest", "nightly"] as const;
 
@@ -69,6 +73,12 @@ const WEB_ICON_SOURCE_PATHS_BY_BRAND = {
     favicon32Png: BRAND_ASSET_PATHS.productionWebFavicon32Png,
     appleTouchIconPng: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
   },
+  arm64: {
+    faviconIco: BRAND_ASSET_PATHS.arm64WebFaviconIco,
+    favicon16Png: BRAND_ASSET_PATHS.arm64WebFavicon16Png,
+    favicon32Png: BRAND_ASSET_PATHS.arm64WebFavicon32Png,
+    appleTouchIconPng: BRAND_ASSET_PATHS.arm64WebAppleTouchIconPng,
+  },
 } as const satisfies Record<WebAssetBrand, Record<keyof typeof WEB_ICON_TARGET_FILENAMES, string>>;
 
 export function resolveWebIconOverrides(
@@ -96,6 +106,6 @@ export function resolveWebIconOverrides(
   ];
 }
 
-export const DEVELOPMENT_ICON_OVERRIDES = resolveWebIconOverrides("development", "dist/client");
+export const DEVELOPMENT_ICON_OVERRIDES = resolveWebIconOverrides("arm64", "dist/client");
 
-export const PUBLISH_ICON_OVERRIDES = resolveWebIconOverrides("production", "dist/client");
+export const PUBLISH_ICON_OVERRIDES = resolveWebIconOverrides("arm64", "dist/client");

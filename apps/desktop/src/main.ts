@@ -46,6 +46,8 @@ import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
 
+import { FORK_DESKTOP_PRODUCT_NAME } from "../../../scripts/lib/fork-branding.ts";
+
 const readPackagedAppBaseName = Effect.fn("desktop.main.readPackagedAppBaseName")(function* (
   appPath: string,
   isPackaged: boolean,
@@ -76,7 +78,10 @@ const desktopEnvironmentLayer = Layer.unwrap(
     const metadata = yield* Effect.service(ElectronApp.ElectronApp).pipe(
       Effect.flatMap((app) => app.metadata),
     );
-    const appBaseName = yield* readPackagedAppBaseName(metadata.appPath, metadata.isPackaged);
+    const appBaseName =
+      (yield* readPackagedAppBaseName(metadata.appPath, metadata.isPackaged)) ??
+      process.env.T3CODE_DESKTOP_PRODUCT_NAME?.trim() ??
+      FORK_DESKTOP_PRODUCT_NAME;
     return DesktopEnvironment.layer({
       dirname: __dirname,
       homeDirectory: NodeOS.homedir(),

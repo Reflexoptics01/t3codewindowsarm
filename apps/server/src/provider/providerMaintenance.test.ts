@@ -55,6 +55,18 @@ const scopedPackageToolUpdate = makePackageManagedProviderMaintenanceResolver({
     isCommandPath: isNativeTestCommandPath("/.scoped-package-tool/bin/scoped-package-tool"),
   },
 });
+const openCodeUpdate = makePackageManagedProviderMaintenanceResolver({
+  provider: driver("opencode"),
+  npmPackageName: "opencode-ai",
+  homebrewFormula: "anomalyco/tap/opencode",
+  nativeUpdate: {
+    executable: "opencode",
+    args: ["upgrade"],
+    lockKey: "opencode-native",
+    isCommandPath: (commandPath: string) =>
+      normalizeCommandPath(commandPath).includes("/.opencode/bin/opencode"),
+  },
+});
 const staticToolUpdate = makeStaticProviderMaintenanceResolver(
   makeProviderMaintenanceCapabilities({
     provider: driver("staticTool"),
@@ -330,6 +342,69 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
         });
       }),
   );
+
+  it("switches OpenCode to native upgrades when the binary resolves through the native installer", () => {
+    expect(
+      openCodeUpdate.resolve({
+        binaryPath: "C:\\Users\\example\\.opencode\\bin\\opencode.exe",
+        platform: "win32",
+        env: {
+          PATH: "",
+        },
+      }),
+    ).toEqual({
+      provider: driver("opencode"),
+      packageName: "opencode-ai",
+      update: {
+        command: "C:\\Users\\example\\.opencode\\bin\\opencode.exe upgrade",
+        executable: "C:\\Users\\example\\.opencode\\bin\\opencode.exe",
+        args: ["upgrade"],
+        lockKey: "opencode-native",
+      },
+    });
+  });
+
+  it("switches OpenCode to native upgrades when the binary basename matches outside the native installer path", () => {
+    expect(
+      openCodeUpdate.resolve({
+        binaryPath: "D:\\tools\\opencode.exe",
+        platform: "win32",
+        env: {
+          PATH: "",
+        },
+      }),
+    ).toEqual({
+      provider: driver("opencode"),
+      packageName: "opencode-ai",
+      update: {
+        command: "D:\\tools\\opencode.exe upgrade",
+        executable: "D:\\tools\\opencode.exe",
+        args: ["upgrade"],
+        lockKey: "opencode-native",
+      },
+    });
+  });
+
+  it("switches OpenCode to npm updates when the binary resolves through Windows npm global bin", () => {
+    expect(
+      openCodeUpdate.resolve({
+        binaryPath: "C:\\Users\\example\\AppData\\Roaming\\npm\\opencode.cmd",
+        platform: "win32",
+        env: {
+          PATH: "",
+        },
+      }),
+    ).toEqual({
+      provider: driver("opencode"),
+      packageName: "opencode-ai",
+      update: {
+        command: "npm install -g opencode-ai@latest",
+        executable: "npm",
+        args: ["install", "-g", "opencode-ai@latest"],
+        lockKey: "npm-global",
+      },
+    });
+  });
 
   it("switches native-package-tool to Homebrew updates when the binary resolves through Homebrew", () => {
     expect(

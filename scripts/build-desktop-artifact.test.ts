@@ -23,8 +23,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.equal(resolveDesktopUpdateChannel("0.0.17"), "latest");
   });
 
-  it("switches desktop packaging product names to nightly for nightly builds", () => {
-    assert.equal(resolveDesktopProductName("0.0.17"), "T3 Code (Alpha)");
+  it("defaults desktop packaging product names to the ARM64 fork branding", () => {
+    assert.equal(resolveDesktopProductName("0.0.17"), "ARM64");
     assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "T3 Code (Nightly)");
   });
 
@@ -57,17 +57,19 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }
   });
 
-  it("switches desktop packaging icons to the nightly artwork for nightly versions", () => {
+  it("defaults desktop packaging icons to the ARM64 fork artwork", () => {
     assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17"), {
-      macIconPng: BRAND_ASSET_PATHS.productionMacIconPng,
-      linuxIconPng: BRAND_ASSET_PATHS.productionLinuxIconPng,
-      windowsIconIco: BRAND_ASSET_PATHS.productionWindowsIconIco,
+      macIconPng: BRAND_ASSET_PATHS.arm64MacIconPng,
+      linuxIconPng: BRAND_ASSET_PATHS.arm64LinuxIconPng,
+      windowsIconIco: BRAND_ASSET_PATHS.arm64WindowsIconIco,
+      windowsIconPng: BRAND_ASSET_PATHS.arm64WindowsIconPng,
     });
 
     assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17-nightly.20260413.42"), {
-      macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
-      linuxIconPng: BRAND_ASSET_PATHS.nightlyLinuxIconPng,
-      windowsIconIco: BRAND_ASSET_PATHS.nightlyWindowsIconIco,
+      macIconPng: BRAND_ASSET_PATHS.arm64MacIconPng,
+      linuxIconPng: BRAND_ASSET_PATHS.arm64LinuxIconPng,
+      windowsIconIco: BRAND_ASSET_PATHS.arm64WindowsIconIco,
+      windowsIconPng: BRAND_ASSET_PATHS.arm64WindowsIconPng,
     });
   });
 

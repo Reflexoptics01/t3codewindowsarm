@@ -39,6 +39,10 @@ import {
   type ServerProviderDraft,
 } from "../providerSnapshot.ts";
 import {
+  resolveCursorInstallCommand,
+  resolveCursorMaintenanceCapabilities,
+} from "../cursorProviderMaintenance.ts";
+import {
   enrichProviderSnapshotWithVersionAdvisory,
   type ProviderMaintenanceCapabilities,
 } from "../providerMaintenance.ts";
@@ -923,6 +927,42 @@ export function parseCursorAboutOutput(result: CommandResult): CursorAboutResult
   };
 }
 
+const runCursorAgentInstall = (
+  cursorSettings: CursorSettings,
+  environment: NodeJS.ProcessEnv = process.env,
+) =>
+  Effect.gen(function* () {
+    const maintenance = resolveCursorMaintenanceCapabilities({
+      binaryPath: cursorSettings.binaryPath,
+      env: environment,
+      platform: process.platform,
+    });
+    const install = maintenance.update;
+    if (!install) {
+      return false;
+    }
+
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const child = yield* spawner.spawn(
+      ChildProcess.make(install.executable, [...install.args], {
+        env: environment,
+        shell: process.platform === "win32",
+      }),
+    );
+    const [stderr, exitCode] = yield* Effect.all(
+      [collectStreamAsString(child.stderr), child.exitCode.pipe(Effect.map(Number))],
+      { concurrency: "unbounded" },
+    );
+    if (exitCode !== 0) {
+      yield* Effect.logWarning("Cursor Agent CLI install failed", {
+        exitCode,
+        stderr: stderr.trim(),
+      });
+      return false;
+    }
+    return true;
+  }).pipe(Effect.scoped);
+
 const runCursorCommand = (
   cursorSettings: CursorSettings,
   args: ReadonlyArray<string>,
@@ -992,25 +1032,37 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
   }
 
   // Single `agent about` probe: returns version + auth status in one call.
-  const aboutProbe = yield* runCursorAboutCommand(cursorSettings, environment).pipe(
+  let aboutProbe = yield* runCursorAboutCommand(cursorSettings, environment).pipe(
     Effect.timeoutOption(ABOUT_TIMEOUT_MS),
     Effect.result,
   );
 
+  if (
+    Result.isFailure(aboutProbe) &&
+    isCommandMissingCause(aboutProbe.failure) &&
+    (yield* runCursorAgentInstall(cursorSettings, environment))
+  ) {
+    aboutProbe = yield* runCursorAboutCommand(cursorSettings, environment).pipe(
+      Effect.timeoutOption(ABOUT_TIMEOUT_MS),
+      Effect.result,
+    );
+  }
+
   if (Result.isFailure(aboutProbe)) {
     const error = aboutProbe.failure;
+    const missingCli = isCommandMissingCause(error);
     return buildServerProvider({
       presentation: CURSOR_PRESENTATION,
       enabled: cursorSettings.enabled,
       checkedAt,
       models: fallbackModels,
       probe: {
-        installed: !isCommandMissingCause(error),
+        installed: !missingCli,
         version: null,
-        status: "error",
+        status: missingCli ? "warning" : "error",
         auth: { status: "unknown" },
-        message: isCommandMissingCause(error)
-          ? "Cursor Agent CLI (`agent`) is not installed or not on PATH."
+        message: missingCli
+          ? `Cursor Agent CLI (\`agent\`) is not installed or not on PATH. Install it with: ${resolveCursorInstallCommand(environment)}`
           : `Failed to execute Cursor Agent CLI health check: ${error instanceof Error ? error.message : String(error)}.`,
       },
     });
@@ -1069,7 +1121,8 @@ export const checkCursorProviderStatus = Effect.fn("checkCursorProviderStatus")(
       yield* Effect.logWarning("Cursor ACP model discovery failed", {
         cause: Cause.pretty(discoveryExit.cause),
       });
-      discoveryWarning = "Cursor ACP model discovery failed. Check server logs for details.";
+      discoveryWarning =
+        "Cursor ACP model discovery failed. Models may be limited until discovery succeeds.";
     } else if (Option.isNone(discoveryExit.value)) {
       discoveryWarning = `Cursor ACP model discovery timed out after ${CURSOR_ACP_MODEL_DISCOVERY_TIMEOUT_MS}ms.`;
     } else if (discoveryExit.value.value.length === 0) {
