@@ -35,6 +35,7 @@ interface DesktopBuildIconAssets {
   readonly macIconPng: string;
   readonly linuxIconPng: string;
   readonly windowsIconIco: string;
+  readonly windowsIconPng?: string | undefined;
 }
 
 interface PlatformConfig {
@@ -210,6 +211,7 @@ interface StagePackageJson {
   readonly name: string;
   readonly version: string;
   readonly buildVersion: string;
+  readonly productName: string;
   readonly t3codeCommitHash: string;
   readonly private: true;
   readonly description: string;
@@ -447,6 +449,21 @@ function stageWindowsIcons(stageResourcesDir: string, sourceIco: string) {
   });
 }
 
+function stageWindowsIconsFromPng(stageResourcesDir: string, sourcePng: string) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    if (!(yield* fs.exists(sourcePng))) {
+      return yield* new BuildScriptError({
+        message: `Desktop Windows icon source is missing at ${sourcePng}`,
+      });
+    }
+
+    const iconPath = path.join(stageResourcesDir, "icon.png");
+    yield* fs.copyFile(sourcePng, iconPath);
+  });
+}
+
 function validateBundledClientAssets(clientDir: string) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -533,7 +550,21 @@ export function resolveDesktopUpdateChannel(version: string): "latest" | "nightl
   return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
 }
 
+export function resolveDesktopIconVariant(): "arm64" | null {
+  const variant = process.env.T3CODE_DESKTOP_ICON_VARIANT?.trim().toLowerCase();
+  return variant === "arm64" ? "arm64" : null;
+}
+
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
+  if (resolveDesktopIconVariant() === "arm64") {
+    return {
+      macIconPng: BRAND_ASSET_PATHS.arm64MacIconPng,
+      linuxIconPng: BRAND_ASSET_PATHS.arm64LinuxIconPng,
+      windowsIconIco: BRAND_ASSET_PATHS.arm64WindowsIconIco,
+      windowsIconPng: BRAND_ASSET_PATHS.arm64WindowsIconPng,
+    };
+  }
+
   if (resolveDesktopUpdateChannel(version) === "nightly") {
     return {
       macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
@@ -554,9 +585,32 @@ export function resolveMockUpdateServerUrl(mockUpdateServerPort: number | undefi
 }
 
 export function resolveDesktopProductName(version: string): string {
+  const override = process.env.T3CODE_DESKTOP_PRODUCT_NAME?.trim();
+  if (override) {
+    return override;
+  }
+
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
+}
+
+export function resolveDesktopAppId(version: string): string {
+  const override = process.env.T3CODE_DESKTOP_APP_ID?.trim();
+  if (override) {
+    return override;
+  }
+
+  return "com.t3tools.t3code";
+}
+
+export function resolveDesktopArtifactName(version: string): string {
+  const productName = resolveDesktopProductName(version);
+  if (productName === "ARM64") {
+    return "ARM64-${version}-${arch}.${ext}";
+  }
+
+  return "T3-Code-${version}-${arch}.${ext}";
 }
 
 const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -566,11 +620,12 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   signed: boolean,
   mockUpdates: boolean,
   mockUpdateServerPort: number | undefined,
+  iconAssets: DesktopBuildIconAssets,
 ) {
   const buildConfig: Record<string, unknown> = {
-    appId: "com.t3tools.t3code",
+    appId: resolveDesktopAppId(version),
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    artifactName: resolveDesktopArtifactName(version),
     directories: {
       buildResources: "apps/desktop/resources",
     },
@@ -614,7 +669,7 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.npmRebuild = false;
     const winConfig: Record<string, unknown> = {
       target: [target],
-      icon: "icon.ico",
+      icon: iconAssets.windowsIconPng ? "icon.png" : "icon.ico",
     };
     if (signed) {
       winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
@@ -644,6 +699,11 @@ const assertPlatformBuildResources = Effect.fn("assertPlatformBuildResources")(f
   }
 
   if (platform === "win") {
+    if (iconAssets.windowsIconPng) {
+      yield* stageWindowsIconsFromPng(stageResourcesDir, iconAssets.windowsIconPng);
+      return;
+    }
+
     yield* stageWindowsIcons(stageResourcesDir, iconAssets.windowsIconIco);
   }
 });
@@ -778,10 +838,12 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   // electron-builder is filtering out stageResourcesDir directory in the AppImage for production
   yield* fs.copy(stageResourcesDir, path.join(stageAppDir, "apps/desktop/prod-resources"));
 
+  const desktopProductName = resolveDesktopProductName(appVersion);
   const stagePackageJson: StagePackageJson = {
     name: "t3code",
     version: appVersion,
     buildVersion: appVersion,
+    productName: desktopProductName,
     t3codeCommitHash: commitHash,
     private: true,
     description: "T3 Code desktop build",
@@ -794,6 +856,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       options.signed,
       options.mockUpdates,
       options.mockUpdateServerPort,
+      iconAssets,
     ),
     dependencies: {
       ...resolvedServerDependencies,

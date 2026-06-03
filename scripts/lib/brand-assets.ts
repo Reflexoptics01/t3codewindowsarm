@@ -21,6 +21,11 @@ export const BRAND_ASSET_PATHS = {
   developmentWebFavicon16Png: "assets/dev/blueprint-web-favicon-16x16.png",
   developmentWebFavicon32Png: "assets/dev/blueprint-web-favicon-32x32.png",
   developmentWebAppleTouchIconPng: "assets/dev/blueprint-web-apple-touch-180.png",
+
+  arm64MacIconPng: "assets/arm64/arm64-macos-1024.png",
+  arm64LinuxIconPng: "assets/arm64/arm64-universal-1024.png",
+  arm64WindowsIconIco: "assets/arm64/arm64-windows.ico",
+  arm64WindowsIconPng: "assets/arm64/arm64-universal-1024.png",
 } as const;
 
 export type WebAssetBrand = "development" | "nightly" | "production";

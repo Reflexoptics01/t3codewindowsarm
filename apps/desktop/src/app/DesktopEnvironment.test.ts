@@ -214,4 +214,20 @@ describe("DesktopEnvironment", () => {
       });
     }),
   );
+
+  it.effect("uses fork ARM64 branding when packaged product name is ARM64", () =>
+    Effect.gen(function* () {
+      const environment = yield* makeEnvironment({
+        isPackaged: true,
+        appBaseName: "ARM64",
+        platform: "win32",
+        processArch: "arm64",
+      });
+
+      assert.strictEqual(environment.displayName, "ARM64");
+      assert.strictEqual(environment.branding.baseName, "ARM64");
+      assert.strictEqual(environment.userDataDirName, "arm64");
+      assert.strictEqual(environment.appUserModelId, "com.t3tools.t3code.arm64");
+    }),
+  );
 });

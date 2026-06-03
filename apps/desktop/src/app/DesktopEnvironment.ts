@@ -29,6 +29,7 @@ export interface MakeDesktopEnvironmentInput {
   readonly resourcesPath: string;
   readonly runningUnderArm64Translation: boolean;
   readonly windowsProcessorArchitectures: ReadonlyArray<string>;
+  readonly appBaseName?: string | undefined;
 }
 
 export interface DesktopEnvironmentShape {
@@ -97,12 +98,15 @@ function resolveDesktopAppStageLabel(input: {
 function resolveDesktopAppBranding(input: {
   readonly isDevelopment: boolean;
   readonly appVersion: string;
+  readonly appBaseName?: string | undefined;
 }): DesktopAppBranding {
   const stageLabel = resolveDesktopAppStageLabel(input);
+  const baseName = input.appBaseName?.trim() || APP_BASE_NAME;
+  const displayName = baseName === APP_BASE_NAME ? `${baseName} (${stageLabel})` : baseName;
   return {
-    baseName: APP_BASE_NAME,
+    baseName,
     stageLabel,
-    displayName: `${APP_BASE_NAME} (${stageLabel})`,
+    displayName,
   };
 }
 
@@ -191,11 +195,17 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
   const branding = resolveDesktopAppBranding({
     isDevelopment,
     appVersion: input.appVersion,
+    appBaseName: input.appBaseName,
   });
   const displayName = branding.displayName;
   const stateDir = path.join(baseDir, isDevelopment ? "dev" : "userdata");
-  const userDataDirName = isDevelopment ? "t3code-dev" : "t3code";
-  const legacyUserDataDirName = isDevelopment ? "T3 Code (Dev)" : "T3 Code (Alpha)";
+  const isArm64Fork = branding.baseName === "ARM64";
+  const userDataDirName = isDevelopment ? "t3code-dev" : isArm64Fork ? "arm64" : "t3code";
+  const legacyUserDataDirName = isDevelopment
+    ? "T3 Code (Dev)"
+    : isArm64Fork
+      ? "ARM64"
+      : "T3 Code (Alpha)";
   const resourcesPath = input.resourcesPath;
 
   return DesktopEnvironment.of({
@@ -233,7 +243,11 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
     otlpExportIntervalMs: config.otlpExportIntervalMs,
     branding,
     displayName,
-    appUserModelId: isDevelopment ? "com.t3tools.t3code.dev" : "com.t3tools.t3code",
+    appUserModelId: isDevelopment
+      ? "com.t3tools.t3code.dev"
+      : isArm64Fork
+        ? "com.t3tools.t3code.arm64"
+        : "com.t3tools.t3code",
     linuxDesktopEntryName: isDevelopment ? "t3code-dev.desktop" : "t3code.desktop",
     linuxWmClass: isDevelopment ? "t3code-dev" : "t3code",
     userDataDirName,

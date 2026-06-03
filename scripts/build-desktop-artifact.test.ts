@@ -7,7 +7,9 @@ import * as Option from "effect/Option";
 import {
   resolveDesktopRuntimeDependencies,
   resolveBuildOptions,
+  resolveDesktopArtifactName,
   resolveDesktopBuildIconAssets,
+  resolveDesktopIconVariant,
   resolveDesktopProductName,
   resolveDesktopUpdateChannel,
   resolveMockUpdateServerPort,
@@ -24,6 +26,35 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   it("switches desktop packaging product names to nightly for nightly builds", () => {
     assert.equal(resolveDesktopProductName("0.0.17"), "T3 Code (Alpha)");
     assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "T3 Code (Nightly)");
+  });
+
+  it("honors fork ARM64 desktop branding env overrides", () => {
+    const previousProductName = process.env.T3CODE_DESKTOP_PRODUCT_NAME;
+    const previousIconVariant = process.env.T3CODE_DESKTOP_ICON_VARIANT;
+    process.env.T3CODE_DESKTOP_PRODUCT_NAME = "ARM64";
+    process.env.T3CODE_DESKTOP_ICON_VARIANT = "arm64";
+    try {
+      assert.equal(resolveDesktopProductName("0.0.17"), "ARM64");
+      assert.equal(resolveDesktopIconVariant(), "arm64");
+      assert.equal(resolveDesktopArtifactName("0.0.17"), "ARM64-${version}-${arch}.${ext}");
+      assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17"), {
+        macIconPng: BRAND_ASSET_PATHS.arm64MacIconPng,
+        linuxIconPng: BRAND_ASSET_PATHS.arm64LinuxIconPng,
+        windowsIconIco: BRAND_ASSET_PATHS.arm64WindowsIconIco,
+        windowsIconPng: BRAND_ASSET_PATHS.arm64WindowsIconPng,
+      });
+    } finally {
+      if (previousProductName === undefined) {
+        delete process.env.T3CODE_DESKTOP_PRODUCT_NAME;
+      } else {
+        process.env.T3CODE_DESKTOP_PRODUCT_NAME = previousProductName;
+      }
+      if (previousIconVariant === undefined) {
+        delete process.env.T3CODE_DESKTOP_ICON_VARIANT;
+      } else {
+        process.env.T3CODE_DESKTOP_ICON_VARIANT = previousIconVariant;
+      }
+    }
   });
 
   it("switches desktop packaging icons to the nightly artwork for nightly versions", () => {
