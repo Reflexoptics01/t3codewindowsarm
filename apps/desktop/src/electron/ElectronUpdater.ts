@@ -47,6 +47,7 @@ export type ElectronUpdaterError =
 
 export interface ElectronUpdaterShape {
   readonly setFeedURL: (options: ElectronUpdaterFeedUrl) => Effect.Effect<void>;
+  readonly setRequestHeaders: (headers: Record<string, string>) => Effect.Effect<void>;
   readonly setAutoDownload: (value: boolean) => Effect.Effect<void>;
   readonly setAutoInstallOnAppQuit: (value: boolean) => Effect.Effect<void>;
   readonly setChannel: (channel: string) => Effect.Effect<void>;
@@ -74,6 +75,11 @@ export const layer = Layer.succeed(ElectronUpdater, {
   setFeedURL: (options) =>
     Effect.suspend(() => {
       autoUpdater.setFeedURL(options);
+      return Effect.void;
+    }),
+  setRequestHeaders: (headers) =>
+    Effect.suspend(() => {
+      autoUpdater.requestHeaders = headers;
       return Effect.void;
     }),
   setAutoDownload: (value) =>

@@ -20,6 +20,8 @@ import * as Schema from "effect/Schema";
 import { HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
+import { resolveCommandPath } from "@t3tools/shared/shell";
+
 import { ProviderRegistry } from "./Services/ProviderRegistry.ts";
 import { makeProviderMaintenanceCommandCoordinator } from "./providerMaintenanceCommandCoordinator.ts";
 import { enrichProviderSnapshotWithVersionAdvisory } from "./providerMaintenance.ts";
@@ -75,8 +77,17 @@ const runProviderMaintenanceCommandWithSpawner = Effect.fn("ProviderMaintenanceR
   }) {
     const collectCommandResult = Effect.fn("ProviderMaintenanceRunner.collectCommandResult")(
       function* () {
+        const resolvedCommand =
+          resolveCommandPath(input.command, {
+            platform: process.platform,
+            env: process.env,
+          }) ?? input.command;
         const child = yield* input.spawner
-          .spawn(ChildProcess.make(input.command, [...input.args]))
+          .spawn(
+            ChildProcess.make(resolvedCommand, [...input.args], {
+              shell: process.platform === "win32",
+            }),
+          )
           .pipe(
             Effect.mapError(
               (cause) =>

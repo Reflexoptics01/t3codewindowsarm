@@ -17,6 +17,7 @@ const { autoUpdaterMock } = vi.hoisted(() => ({
     quitAndInstall: vi.fn(),
     removeListener: vi.fn(),
     setFeedURL: vi.fn(),
+    requestHeaders: null as Record<string, string> | null,
   },
 }));
 
@@ -42,7 +43,16 @@ describe("ElectronUpdater", () => {
     autoUpdaterMock.quitAndInstall.mockClear();
     autoUpdaterMock.removeListener.mockClear();
     autoUpdaterMock.setFeedURL.mockClear();
+    autoUpdaterMock.requestHeaders = null;
   });
+
+  it.effect("sets updater request headers", () =>
+    Effect.gen(function* () {
+      const updater = yield* ElectronUpdater.ElectronUpdater;
+      yield* updater.setRequestHeaders({ Authorization: "Bearer test-token" });
+      assert.deepEqual(autoUpdaterMock.requestHeaders, { Authorization: "Bearer test-token" });
+    }).pipe(Effect.provide(ElectronUpdater.layer)),
+  );
 
   it.effect("scopes updater event listeners", () =>
     Effect.gen(function* () {

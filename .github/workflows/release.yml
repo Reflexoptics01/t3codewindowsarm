@@ -552,6 +552,18 @@ jobs:
             echo "No Windows updater manifest pairs found to merge."
           fi
 
+          for arm64_only_manifest in release-assets/*-win-arm64.yml; do
+            if [[ "$(basename "$arm64_only_manifest")" == builder-debug-* ]]; then
+              continue
+            fi
+            output_manifest="${arm64_only_manifest/-win-arm64.yml/.yml}"
+            if [[ -f "$output_manifest" ]]; then
+              continue
+            fi
+            echo "Promoting arm64-only Windows manifest $arm64_only_manifest -> $output_manifest"
+            mv "$arm64_only_manifest" "$output_manifest"
+          done
+
       - name: Publish release
         if: needs.preflight.outputs.previous_tag != ''
         uses: softprops/action-gh-release@v2

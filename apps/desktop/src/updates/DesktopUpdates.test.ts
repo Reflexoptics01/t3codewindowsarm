@@ -16,6 +16,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
 
@@ -58,6 +59,7 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
       Effect.sync(() => {
         feedUrls.push(options);
       }),
+    setRequestHeaders: () => Effect.void,
     setAutoDownload: () => Effect.void,
     setAutoInstallOnAppQuit: () => Effect.void,
     setChannel: () => Effect.void,
@@ -101,6 +103,43 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
     syncAllAppearance: () => Effect.void,
   } satisfies ElectronWindow.ElectronWindowShape);
 
+  const appListeners = new Map<string, Set<(...args: readonly unknown[]) => void>>();
+  const electronAppLayer = Layer.succeed(ElectronApp.ElectronApp, {
+    metadata: Effect.succeed({
+      appVersion: "1.2.3",
+      appPath: "/repo",
+      isPackaged: true,
+      resourcesPath: "/missing/resources",
+      runningUnderArm64Translation: false,
+      windowsProcessorArchitectures: [],
+    }),
+    name: Effect.succeed("T3 Code"),
+    whenReady: Effect.void,
+    quit: Effect.void,
+    exit: () => Effect.void,
+    relaunch: () => Effect.void,
+    setPath: () => Effect.void,
+    setName: () => Effect.void,
+    setAboutPanelOptions: () => Effect.void,
+    setAppUserModelId: () => Effect.void,
+    setDesktopName: () => Effect.void,
+    setDockIcon: () => Effect.void,
+    appendCommandLineSwitch: () => Effect.void,
+    on: (eventName, listener) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const eventListeners = appListeners.get(eventName) ?? new Set();
+          eventListeners.add(listener as (...args: readonly unknown[]) => void);
+          appListeners.set(eventName, eventListeners);
+        }),
+        () =>
+          Effect.sync(() => {
+            const eventListeners = appListeners.get(eventName);
+            eventListeners?.delete(listener as (...args: readonly unknown[]) => void);
+          }),
+      ).pipe(Effect.asVoid),
+  } satisfies ElectronApp.ElectronAppShape);
+
   const backendLayer = Layer.succeed(DesktopBackendManager.DesktopBackendManager, {
     start: Effect.void,
     stop: () => Effect.void,
@@ -140,6 +179,7 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
   );
 
   const layer = DesktopUpdates.layer.pipe(
+    Layer.provideMerge(electronAppLayer),
     Layer.provideMerge(updaterLayer),
     Layer.provideMerge(windowLayer),
     Layer.provideMerge(backendLayer),
@@ -167,6 +207,11 @@ function makeHarness(options: UpdatesHarnessOptions = {}) {
         0,
       ),
     sentStates,
+    appListenerCount: () =>
+      Array.from(appListeners.values()).reduce(
+        (total, eventListeners) => total + eventListeners.size,
+        0,
+      ),
     emit: (eventName: string, payload?: unknown) => {
       for (const listener of listeners.get(eventName) ?? []) {
         listener(payload);
@@ -192,6 +237,7 @@ describe("DesktopUpdates", () => {
             { provider: "generic", url: "http://localhost:4141" },
           ]);
           assert.equal(harness.listenerCount(), 6);
+          assert.equal(harness.appListenerCount(), 1);
           assert.equal(harness.checkCount(), 0);
 
           yield* TestClock.adjust(Duration.millis(15_000));

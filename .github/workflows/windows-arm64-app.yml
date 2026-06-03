@@ -1,6 +1,9 @@
 name: Windows ARM64 App
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       sync_upstream:
@@ -24,15 +27,15 @@ jobs:
     runs-on: windows-11-arm
     timeout-minutes: 60
     steps:
-      - name: Checkout fork branch
+      - name: Checkout main
         uses: actions/checkout@v6
         with:
-          ref: windows-arm64-support
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Merge upstream main
-        if: github.event_name == 'schedule' || github.event.inputs.sync_upstream != 'false'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_upstream != 'false')
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -41,7 +44,7 @@ jobs:
           git remote add upstream https://github.com/pingdotgg/t3code.git
           git fetch upstream main --tags
           git merge --no-edit upstream/main
-          git push origin HEAD:windows-arm64-support
+          git push origin HEAD:main
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -55,6 +58,25 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pkg = Get-Content apps/server/package.json | ConvertFrom-Json
+          $baseVersion = [string]$pkg.version
+          # Strip any prior fork build suffix so re-runs stay monotonic.
+          if ($baseVersion -match '^(\d+\.\d+\.\d+)(?:-arm64\.\d+)?$') {
+            $baseVersion = $Matches[1]
+          }
+          $releaseVersion = "$baseVersion-arm64.${{ github.run_number }}"
+          "release_version=$releaseVersion" >> $env:GITHUB_OUTPUT
+          "tag=v$releaseVersion" >> $env:GITHUB_OUTPUT
+          "name=T3 Code Windows ARM64 v$releaseVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Bump package versions for release
+        run: node scripts/update-release-package-versions.ts "${{ steps.version.outputs.release_version }}"
 
       - name: Build Windows ARM64 installer
         shell: pwsh
@@ -74,26 +96,16 @@ jobs:
             Move-Item -Force "release/nightly-arm64.yml" "release/nightly.yml"
           }
 
-      - name: Resolve release metadata
-        id: meta
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $pkg = Get-Content apps/server/package.json | ConvertFrom-Json
-          $version = [string]$pkg.version
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version-windows-arm64" >> $env:GITHUB_OUTPUT
-          "name=T3 Code Windows ARM64 v$version" >> $env:GITHUB_OUTPUT
-
       - name: Publish fork release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          target_commitish: windows-arm64-support
-          name: ${{ steps.meta.outputs.name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: main
+          name: ${{ steps.version.outputs.name }}
           body: |
             Windows ARM64 fork build.
 
+            Version: `${{ steps.version.outputs.release_version }}`
             Built from `${{ github.repository }}@${{ github.sha }}`.
             Upstream sync source: `pingdotgg/t3code@main`.
           make_latest: true
