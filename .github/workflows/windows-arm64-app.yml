@@ -73,7 +73,7 @@ jobs:
           $releaseVersion = "$baseVersion-arm64.${{ github.run_number }}"
           "release_version=$releaseVersion" >> $env:GITHUB_OUTPUT
           "tag=v$releaseVersion" >> $env:GITHUB_OUTPUT
-          "name=T3 Code Windows ARM64 v$releaseVersion" >> $env:GITHUB_OUTPUT
+          "name=ARM64 v$releaseVersion" >> $env:GITHUB_OUTPUT
 
       - name: Bump package versions for release
         run: node scripts/update-release-package-versions.ts "${{ steps.version.outputs.release_version }}"
@@ -82,6 +82,9 @@ jobs:
         shell: pwsh
         env:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
+          T3CODE_DESKTOP_PRODUCT_NAME: ARM64
+          T3CODE_DESKTOP_APP_ID: com.t3tools.t3code.arm64
+          T3CODE_DESKTOP_ICON_VARIANT: arm64
         run: |
           $ErrorActionPreference = "Stop"
           bun run dist:desktop:win:arm64 -- --verbose

@@ -3,8 +3,10 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeOS from "node:os";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 
 import * as Electron from "electron";
 
@@ -44,17 +46,44 @@ import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
 
+const readPackagedAppBaseName = Effect.fn("desktop.main.readPackagedAppBaseName")(function* (
+  appPath: string,
+  isPackaged: boolean,
+) {
+  if (!isPackaged) {
+    return undefined;
+  }
+
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const raw = yield* fs.readFileString(path.join(appPath, "package.json")).pipe(Effect.option);
+  return Option.match(raw, {
+    onNone: () => undefined,
+    onSome: (value) => {
+      try {
+        const parsed = JSON.parse(value) as { productName?: unknown };
+        const productName = typeof parsed.productName === "string" ? parsed.productName.trim() : "";
+        return productName.length > 0 ? productName : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+  });
+});
+
 const desktopEnvironmentLayer = Layer.unwrap(
   Effect.gen(function* () {
     const metadata = yield* Effect.service(ElectronApp.ElectronApp).pipe(
       Effect.flatMap((app) => app.metadata),
     );
+    const appBaseName = yield* readPackagedAppBaseName(metadata.appPath, metadata.isPackaged);
     return DesktopEnvironment.layer({
       dirname: __dirname,
       homeDirectory: NodeOS.homedir(),
       platform: process.platform,
       processArch: process.arch,
       ...metadata,
+      appBaseName,
     });
   }),
 );
