@@ -16,7 +16,7 @@ import * as Schema from "effect/Schema";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
-import { ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import { ProviderRegistry, type ProviderRegistryShape } from "./Services/ProviderRegistry.ts";
 import * as ProviderMaintenanceRunner from "./providerMaintenanceRunner.ts";
@@ -121,11 +121,33 @@ function mockHandle(result: {
   });
 }
 
+interface ProviderMaintenanceSpawnCall {
+  readonly command: string;
+  readonly args: ReadonlyArray<string>;
+  readonly shell: boolean | string | undefined;
+}
+
+function normalizeSpawnExecutable(command: string): string {
+  const normalized = command.replaceAll("\\", "/");
+  const file = normalized.slice(normalized.lastIndexOf("/") + 1);
+  return file.replace(/\.(exe|cmd)$/i, "").toLowerCase();
+}
+
+function readProviderMaintenanceSpawnCall(
+  command: ChildProcess.Command,
+): ProviderMaintenanceSpawnCall {
+  if (command._tag !== "StandardCommand") {
+    return { command: "unknown", args: [], shell: undefined };
+  }
+  return {
+    command: command.command,
+    args: command.args,
+    shell: command.options.shell,
+  };
+}
+
 function mockSpawnerLayer(
-  handler: (
-    command: string,
-    args: ReadonlyArray<string>,
-  ) => {
+  handler: (spawnCall: ProviderMaintenanceSpawnCall) => {
     readonly stdout?: string;
     readonly stderr?: string;
     readonly code?: number;
@@ -135,11 +157,8 @@ function mockSpawnerLayer(
   return Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      const childProcess = command as unknown as {
-        readonly command: string;
-        readonly args: ReadonlyArray<string>;
-      };
-      return Effect.succeed(mockHandle(handler(childProcess.command, childProcess.args)));
+      const spawnCall = readProviderMaintenanceSpawnCall(command);
+      return Effect.succeed(mockHandle(handler(spawnCall)));
     }),
   );
 }
@@ -230,8 +249,8 @@ describe("providerMaintenanceRunner", () => {
       Effect.provide(
         Layer.mergeAll(
           latestVersionHttpClient("0.0.0"),
-          mockSpawnerLayer((command, args) => {
-            calls.push({ command, args });
+          mockSpawnerLayer((spawnCall) => {
+            calls.push({ command: spawnCall.command, args: spawnCall.args });
             return { stdout: "updated" };
           }),
         ),
@@ -269,18 +288,15 @@ describe("providerMaintenanceRunner", () => {
       });
 
       yield* updater.updateProvider(CODEX_DRIVER);
-      assert.deepStrictEqual(calls, [
-        {
-          command: "bun",
-          args: ["i", "-g", "@openai/codex@latest"],
-        },
-      ]);
+      assert.lengthOf(calls, 1);
+      assert.strictEqual(normalizeSpawnExecutable(calls[0]?.command ?? ""), "bun");
+      assert.deepStrictEqual(calls[0]?.args, ["i", "-g", "@openai/codex@latest"]);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
           latestVersionHttpClient("0.0.0"),
-          mockSpawnerLayer((command, args) => {
-            calls.push({ command, args });
+          mockSpawnerLayer((spawnCall) => {
+            calls.push({ command: spawnCall.command, args: spawnCall.args });
             return { stdout: "updated" };
           }),
         ),
@@ -298,19 +314,16 @@ describe("providerMaintenanceRunner", () => {
 
         const result = yield* runner.updateProvider(CODEX_DRIVER);
 
-        assert.deepStrictEqual(calls, [
-          {
-            command: "npm",
-            args: ["install", "-g", "@openai/codex@latest"],
-          },
-        ]);
+        assert.lengthOf(calls, 1);
+        assert.strictEqual(normalizeSpawnExecutable(calls[0]?.command ?? ""), "npm");
+        assert.deepStrictEqual(calls[0]?.args, ["install", "-g", "@openai/codex@latest"]);
         assert.strictEqual(result.providers[0]?.updateState?.status, "succeeded");
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
             latestVersionHttpClient("0.0.0"),
-            mockSpawnerLayer((command, args) => {
-              calls.push({ command, args });
+            mockSpawnerLayer((spawnCall) => {
+              calls.push({ command: spawnCall.command, args: spawnCall.args });
               return { stdout: "updated" };
             }),
           ),
@@ -381,8 +394,8 @@ describe("providerMaintenanceRunner", () => {
       Effect.provide(
         Layer.mergeAll(
           latestVersionHttpClient("0.124.0-alpha.3"),
-          mockSpawnerLayer((command, args) => {
-            calls.push({ command, args });
+          mockSpawnerLayer((spawnCall) => {
+            calls.push({ command: spawnCall.command, args: spawnCall.args });
             return { stdout: "updated" };
           }),
         ),
@@ -544,8 +557,8 @@ describe("providerMaintenanceRunner", () => {
       Effect.provide(
         Layer.mergeAll(
           latestVersionHttpClient("0.0.0"),
-          mockSpawnerLayer((_command, args) => {
-            calls.push(args.join(" "));
+          mockSpawnerLayer((spawnCall) => {
+            calls.push(spawnCall.args.join(" "));
             if (calls.length === 1) {
               firstStartedLatch.resolve();
               return {
@@ -587,8 +600,42 @@ describe("providerMaintenanceRunner", () => {
       Effect.provide(
         Layer.mergeAll(
           latestVersionHttpClient("0.0.0"),
-          mockSpawnerLayer((_command, args) => {
-            calls.push(args.join(" "));
+          mockSpawnerLayer((spawnCall) => {
+            calls.push(spawnCall.args.join(" "));
+            return { stdout: "updated" };
+          }),
+        ),
+      ),
+    );
+  });
+
+  it.effect("spawns package-manager updates with shell on Windows", () => {
+    const calls: Array<ProviderMaintenanceSpawnCall> = [];
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32" });
+    return Effect.gen(function* () {
+      const { registry } = yield* makeRegistry(baseProvider);
+      const updater = yield* makeTestRunner(registry);
+
+      const result = yield* updater.updateProvider(CODEX_DRIVER);
+
+      assert.strictEqual(result.providers[0]?.updateState?.status, "succeeded");
+      assert.lengthOf(calls, 1);
+      assert.strictEqual(calls[0]?.shell, true);
+      assert.strictEqual(calls[0]?.command.includes("npm"), true);
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          if (platformDescriptor) {
+            Object.defineProperty(process, "platform", platformDescriptor);
+          }
+        }),
+      ),
+      Effect.provide(
+        Layer.mergeAll(
+          latestVersionHttpClient("0.0.0"),
+          mockSpawnerLayer((spawnCall) => {
+            calls.push(spawnCall);
             return { stdout: "updated" };
           }),
         ),

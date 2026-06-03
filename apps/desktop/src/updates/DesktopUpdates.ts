@@ -27,6 +27,7 @@ import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as IpcChannels from "../ipc/channels.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
 import { resolveDefaultDesktopUpdateChannel } from "./updateChannels.ts";
 import {
   createInitialDesktopUpdateState,
@@ -42,7 +43,7 @@ import {
 } from "./updateMachine.ts";
 
 const AUTO_UPDATE_STARTUP_DELAY = "15 seconds";
-const AUTO_UPDATE_POLL_INTERVAL = "4 minutes";
+const AUTO_UPDATE_POLL_INTERVAL = "2 minutes";
 
 const AppUpdateYmlConfig = Schema.Record(Schema.String, Schema.String);
 type AppUpdateYmlConfig = typeof AppUpdateYmlConfig.Type;
@@ -185,10 +186,17 @@ function isArm64HostRunningIntelBuild(runtimeInfo: DesktopRuntimeInfo): boolean 
   return runtimeInfo.hostArch === "arm64" && runtimeInfo.appArch === "x64";
 }
 
+function resolveDesktopUpdateGithubToken(): string | null {
+  const token =
+    process.env.T3CODE_DESKTOP_UPDATE_GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim() || "";
+  return token.length > 0 ? token : null;
+}
+
 const make = Effect.gen(function* () {
   const config = yield* DesktopConfig.DesktopConfig;
   const backendManager = yield* DesktopBackendManager.DesktopBackendManager;
   const desktopState = yield* DesktopState.DesktopState;
+  const electronApp = yield* ElectronApp.ElectronApp;
   const electronUpdater = yield* ElectronUpdater.ElectronUpdater;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
@@ -553,6 +561,14 @@ const make = Effect.gen(function* () {
       }
       yield* Ref.set(updaterConfiguredRef, true);
 
+      const githubToken = resolveDesktopUpdateGithubToken();
+      if (githubToken) {
+        yield* electronUpdater.setRequestHeaders({
+          Authorization: `Bearer ${githubToken}`,
+        });
+        yield* logUpdaterInfo("configured GitHub updater authentication");
+      }
+
       yield* electronUpdater.setAutoDownload(false);
       yield* electronUpdater.setAutoInstallOnAppQuit(false);
       yield* applyAutoUpdaterChannel(settings.updateChannel);
@@ -592,6 +608,16 @@ const make = Effect.gen(function* () {
       });
 
       yield* startUpdatePollers;
+
+      yield* electronApp.on("browser-window-focus", () => {
+        runEffect(
+          checkForUpdates("focus").pipe(
+            Effect.catchCause((cause) =>
+              logUpdaterError("focus update check failed", { cause: Cause.pretty(cause) }),
+            ),
+          ),
+        );
+      });
     }).pipe(Effect.withSpan("desktop.updates.configure")),
     setChannel: Effect.fn("desktop.updates.setChannel")(function* (
       nextChannel: DesktopUpdateChannel,

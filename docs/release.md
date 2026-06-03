@@ -7,14 +7,15 @@ This document covers the unified release workflow for stable and nightly desktop
 - Workflow: `.github/workflows/release.yml`
 - Triggers:
   - push tag matching `v*.*.*` for stable releases
-  - scheduled nightly at `09:00 UTC`
+  - scheduled nightly every 3 hours (`0 */3 * * *`)
   - manual `workflow_dispatch` for either channel
 - Runs quality gates first: lint, typecheck, test.
-- Builds four artifacts in parallel for both channels:
+- Builds five desktop artifacts in parallel for both channels:
   - macOS `arm64` DMG
   - macOS `x64` DMG
   - Linux `x64` AppImage
   - Windows `x64` NSIS installer
+  - Windows `arm64` NSIS installer
 - Publishes one GitHub Release with all produced files.
   - Stable tags with a suffix after `X.Y.Z` (for example `1.2.3-alpha.1`) are published as GitHub prereleases.
   - Only plain stable `X.Y.Z` releases are marked as the repository's latest release.
@@ -85,7 +86,7 @@ One-time Vercel dashboard setup:
 
 - Workflow: `.github/workflows/release.yml`
 - Triggers:
-  - scheduled every day at `09:00 UTC`
+  - scheduled every 3 hours (`0 */3 * * *`)
   - manual `workflow_dispatch` with `channel=nightly`
 - Runs the same desktop quality gates and artifact matrix as the tagged release flow.
 - Publishes a GitHub prerelease only:
@@ -99,7 +100,7 @@ One-time Vercel dashboard setup:
 
 ## Desktop auto-update notes
 
-- Runtime updater: `electron-updater` in `apps/desktop/src/main.ts`.
+- Runtime updater: `electron-updater` in `apps/desktop/src/updates/DesktopUpdates.ts`.
 - Update UX:
   - Background checks run on startup delay + interval.
   - No automatic download or install.
