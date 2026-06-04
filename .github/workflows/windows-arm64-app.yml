@@ -57,7 +57,8 @@ jobs:
           node-version-file: package.json
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        # Windows ARM64 runners cannot reliably create package symlinks (EPERM on @pierre/diffs).
+        run: bun install --backend=copyfile --frozen-lockfile
 
       - name: Resolve release version
         id: version

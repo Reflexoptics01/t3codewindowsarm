@@ -912,13 +912,15 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   yield* fs.writeFileString(path.join(stageAppDir, "package.json"), `${stagePackageJsonString}\n`);
 
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
+  const stagedInstallBackend =
+    process.platform === "win32" ? "--backend=copyfile " : "";
   yield* runCommand(
     ChildProcess.make({
       cwd: stageAppDir,
       ...commandOutputOptions(options.verbose),
       // Windows needs shell mode to resolve .cmd shims (e.g. bun.cmd).
       shell: process.platform === "win32",
-    })`bun install --production --omit optional`,
+    })`bun install ${stagedInstallBackend}--production --omit optional`,
   );
 
   const buildEnv: NodeJS.ProcessEnv = {
