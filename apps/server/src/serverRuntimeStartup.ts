@@ -29,6 +29,7 @@ import { OrchestrationEngineService } from "./orchestration/Services/Orchestrati
 import { ProjectionSnapshotQuery } from "./orchestration/Services/ProjectionSnapshotQuery.ts";
 import { OrchestrationReactor } from "./orchestration/Services/OrchestrationReactor.ts";
 import { UsageAggregator } from "./orchestration/Services/UsageAggregator.ts";
+import * as Cause from "effect/Cause";
 import { ServerLifecycleEvents } from "./serverLifecycleEvents.ts";
 import { ServerSettingsService } from "./serverSettings.ts";
 import { ServerEnvironment } from "./environment/Services/ServerEnvironment.ts";
@@ -335,7 +336,16 @@ export const makeServerRuntimeStartup = Effect.gen(function* () {
       Effect.gen(function* () {
         yield* orchestrationReactor.start().pipe(Scope.provide(reactorScope));
         yield* providerSessionReaper.start().pipe(Scope.provide(reactorScope));
-        yield* usageAggregator.start().pipe(Scope.provide(reactorScope));
+        yield* usageAggregator.start().pipe(
+          Scope.provide(reactorScope),
+          Effect.catchCause((cause) =>
+            Cause.hasInterruptsOnly(cause)
+              ? Effect.failCause(cause)
+              : Effect.logWarning("usage aggregator failed to start", {
+                  cause: Cause.pretty(cause),
+                }),
+          ),
+        );
       }),
     );
 
