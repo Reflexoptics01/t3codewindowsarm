@@ -828,7 +828,9 @@ const make = Effect.gen(function* () {
     const activeSession = yield* providerService
       .listSessions()
       .pipe(
-        Effect.map((sessions) => sessions.find((session) => session.threadId === event.payload.threadId)),
+        Effect.map((sessions) =>
+          sessions.find((session) => session.threadId === event.payload.threadId),
+        ),
       );
 
     if (activeSession) {

@@ -1,26 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync } from "node:fs";
 import { watch } from "node:fs";
 import { join } from "node:path";
 
 import { desktopDir, resolveElectronPath } from "./electron-launcher.mjs";
+import { syncDesktopResources } from "./sync-desktop-resources.mjs";
 import { waitForResources } from "./wait-for-resources.mjs";
 
-function syncDesktopDevResources() {
-  const resourcesDir = join(desktopDir, "resources");
-  mkdirSync(resourcesDir, { recursive: true });
-  const repoRoot = join(desktopDir, "../..");
-  copyFileSync(
-    join(repoRoot, "assets/arm64/arm64-windows.ico"),
-    join(resourcesDir, "icon.ico"),
-  );
-  copyFileSync(
-    join(repoRoot, "assets/arm64/arm64-universal-1024.png"),
-    join(resourcesDir, "icon.png"),
-  );
-}
-
-syncDesktopDevResources();
+syncDesktopResources();
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL?.trim();
 if (!devServerUrl) {

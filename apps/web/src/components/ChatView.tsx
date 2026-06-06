@@ -3138,10 +3138,7 @@ export default function ChatView(props: ChatViewProps) {
   const onInterrupt = async () => {
     const api = readEnvironmentApi(environmentId);
     if (!api || !activeThread) return;
-    const turnId =
-      activeThread.session?.activeTurnId ??
-      activeLatestTurn?.turnId ??
-      undefined;
+    const turnId = activeThread.session?.activeTurnId ?? activeLatestTurn?.turnId ?? undefined;
     await api.orchestration.dispatchCommand({
       type: "thread.turn.interrupt",
       commandId: newCommandId(),

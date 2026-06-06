@@ -530,6 +530,29 @@ describe("parseCursorAboutOutput", () => {
     });
   });
 
+  it("parses json about output when the payload is written to stderr", () => {
+    expect(
+      parseCursorAboutOutput({
+        code: 1,
+        stdout: "",
+        stderr: JSON.stringify({
+          cliVersion: "2026.04.09-f2b0fcd",
+          subscriptionTier: "Pro",
+          userEmail: "user@example.com",
+        }),
+      }),
+    ).toEqual({
+      version: "2026.04.09-f2b0fcd",
+      status: "ready",
+      auth: {
+        status: "authenticated",
+        email: "user@example.com",
+        type: "Pro",
+        label: "Cursor Pro Subscription",
+      },
+    });
+  });
+
   it("treats json about output with a null email as unauthenticated", () => {
     expect(
       parseCursorAboutOutput({

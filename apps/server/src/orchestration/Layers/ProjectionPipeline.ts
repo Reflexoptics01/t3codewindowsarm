@@ -1127,16 +1127,18 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         case "thread.turn-interrupt-requested": {
           const turnId =
             event.payload.turnId ??
-            (yield* projectionThreadSessionRepository.getByThreadId({
-              threadId: event.payload.threadId,
-            }).pipe(
-              Effect.map((session) =>
-                Option.match(session, {
-                  onNone: () => undefined,
-                  onSome: (value) => value.activeTurnId ?? undefined,
-                }),
-              ),
-            ));
+            (yield* projectionThreadSessionRepository
+              .getByThreadId({
+                threadId: event.payload.threadId,
+              })
+              .pipe(
+                Effect.map((session) =>
+                  Option.match(session, {
+                    onNone: () => undefined,
+                    onSome: (value) => value.activeTurnId ?? undefined,
+                  }),
+                ),
+              ));
           if (turnId === undefined) {
             return;
           }

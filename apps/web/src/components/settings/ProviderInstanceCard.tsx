@@ -747,7 +747,9 @@ export function ProviderInstanceCard({
                       {onRunUpdate && updateCommand ? (
                         <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                           <span aria-hidden className="h-px flex-1 bg-border" />
-                          {maintenanceMode === "install" ? "or, install manually using" : "or, update manually using"}
+                          {maintenanceMode === "install"
+                            ? "or, install manually using"
+                            : "or, update manually using"}
                           <span aria-hidden className="h-px flex-1 bg-border" />
                         </div>
                       ) : null}

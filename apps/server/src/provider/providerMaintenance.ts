@@ -181,10 +181,7 @@ function getCommandBasename(commandPath: string): string {
   return fileName.replace(/\.(exe|cmd|bat)$/i, "");
 }
 
-function matchesNativeUpdateExecutable(
-  commandPath: string,
-  nativeExecutable: string,
-): boolean {
+function matchesNativeUpdateExecutable(commandPath: string, nativeExecutable: string): boolean {
   return getCommandBasename(commandPath) === nativeExecutable;
 }
 

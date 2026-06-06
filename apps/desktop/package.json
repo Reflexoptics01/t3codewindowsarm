@@ -8,7 +8,7 @@
     "dev": "bun run --parallel dev:bundle dev:electron",
     "dev:bundle": "tsdown --watch",
     "dev:electron": "node scripts/dev-electron.mjs",
-    "build": "tsdown",
+    "build": "node scripts/sync-desktop-resources.mjs && tsdown",
     "start": "node scripts/start-electron.mjs",
     "typecheck": "tsgo --noEmit",
     "test": "vitest run --passWithNoTests",

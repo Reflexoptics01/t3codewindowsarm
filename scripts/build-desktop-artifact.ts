@@ -871,6 +871,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       macIconPng: path.join(repoRoot, iconAssets.macIconPng),
       linuxIconPng: path.join(repoRoot, iconAssets.linuxIconPng),
       windowsIconIco: path.join(repoRoot, iconAssets.windowsIconIco),
+      ...(iconAssets.windowsIconPng
+        ? { windowsIconPng: path.join(repoRoot, iconAssets.windowsIconPng) }
+        : {}),
     },
     options.verbose,
   );
@@ -912,8 +915,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   yield* fs.writeFileString(path.join(stageAppDir, "package.json"), `${stagePackageJsonString}\n`);
 
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
-  const stagedInstallBackend =
-    process.platform === "win32" ? "--backend=copyfile " : "";
+  const stagedInstallBackend = process.platform === "win32" ? "--backend=copyfile " : "";
   yield* runCommand(
     ChildProcess.make({
       cwd: stageAppDir,

@@ -5,6 +5,7 @@ import * as Scope from "effect/Scope";
 import { ChildProcessSpawner } from "effect/unstable/process";
 import type * as EffectAcpErrors from "effect-acp/errors";
 
+import { resolveCursorAgentBinaryPath } from "../cursorProviderMaintenance.ts";
 import {
   CURSOR_PARAMETERIZED_MODEL_PICKER_CAPABILITIES,
   resolveCursorAcpBaseModelId,
@@ -40,7 +41,10 @@ export function buildCursorAcpSpawnInput(
   environment?: NodeJS.ProcessEnv,
 ): AcpSpawnInput {
   return {
-    command: cursorSettings?.binaryPath || "agent",
+    command: resolveCursorAgentBinaryPath(cursorSettings?.binaryPath, {
+      ...(environment ? { env: environment } : {}),
+      platform: process.platform,
+    }),
     args: [
       ...(cursorSettings?.apiEndpoint ? (["-e", cursorSettings.apiEndpoint] as const) : []),
       "acp",

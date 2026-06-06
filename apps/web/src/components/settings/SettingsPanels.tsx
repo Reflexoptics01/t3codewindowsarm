@@ -974,47 +974,49 @@ export function ProviderSettingsPanel() {
       readonly driver: ProviderDriverKind;
       readonly instanceId: ProviderInstanceId;
     }) => {
-    let started = false;
-    setUpdatingProviderDrivers((previous) => {
-      if (previous.has(input.driver)) {
-        return previous;
-      }
-      started = true;
-      const next = new Set(previous);
-      next.add(input.driver);
-      return next;
-    });
-    if (!started) {
-      return;
-    }
-
-    try {
-      await ensureLocalApi().server.updateProvider({
-        provider: input.driver,
-        instanceId: input.instanceId,
-      });
-    } catch (error) {
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: `Could not update ${PROVIDER_DISPLAY_NAMES[input.driver] ?? input.driver}`,
-          description:
-            error instanceof Error
-              ? error.message
-              : "The provider update command could not be started.",
-        }),
-      );
-    } finally {
+      let started = false;
       setUpdatingProviderDrivers((previous) => {
-        if (!previous.has(input.driver)) {
+        if (previous.has(input.driver)) {
           return previous;
         }
+        started = true;
         const next = new Set(previous);
-        next.delete(input.driver);
+        next.add(input.driver);
         return next;
       });
-    }
-  }, []);
+      if (!started) {
+        return;
+      }
+
+      try {
+        await ensureLocalApi().server.updateProvider({
+          provider: input.driver,
+          instanceId: input.instanceId,
+        });
+      } catch (error) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: `Could not update ${PROVIDER_DISPLAY_NAMES[input.driver] ?? input.driver}`,
+            description:
+              error instanceof Error
+                ? error.message
+                : "The provider update command could not be started.",
+          }),
+        );
+      } finally {
+        setUpdatingProviderDrivers((previous) => {
+          if (!previous.has(input.driver)) {
+            return previous;
+          }
+          const next = new Set(previous);
+          next.delete(input.driver);
+          return next;
+        });
+      }
+    },
+    [],
+  );
 
   interface InstanceRow {
     readonly instanceId: ProviderInstanceId;

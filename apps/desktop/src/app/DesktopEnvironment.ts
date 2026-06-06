@@ -17,10 +17,7 @@ import {
 } from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
-import {
-  FORK_DESKTOP_PRODUCT_NAME,
-  FORK_WEB_APP_BASE_NAME,
-} from "../forkBranding.ts";
+import { FORK_DESKTOP_PRODUCT_NAME, FORK_WEB_APP_BASE_NAME } from "../forkBranding.ts";
 
 export interface MakeDesktopEnvironmentInput {
   readonly dirname: string;
