@@ -92,6 +92,14 @@ export const ClientSettingsSchema = Schema.Struct({
   timestampFormat: TimestampFormat.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_TIMESTAMP_FORMAT)),
   ),
+  /**
+   * When the Go plan usage limits are exhausted, keep going by drawing from
+   * the user's available API balance instead of rejecting turns. Default
+   * off — most users want a hard stop when the plan is used up.
+   */
+  useAvailableBalanceAfterLimit: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(false)),
+  ),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 

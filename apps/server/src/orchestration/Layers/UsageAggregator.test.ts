@@ -23,10 +23,13 @@ describe("UsageAggregator windowing math", () => {
         generatedAtMs: Date.UTC(2026, 5, 2, 12, 0, 0),
         lastTurnAtMs: null,
         fiveHourEntries: [],
+        weeklyEntries: [],
         monthlyEntries: [],
       });
       assert.equal(snapshot.fiveHour.totalTokens, 0);
       assert.equal(snapshot.fiveHour.turnCount, 0);
+      assert.equal(snapshot.weekly.totalTokens, 0);
+      assert.equal(snapshot.weekly.turnCount, 0);
       assert.equal(snapshot.monthly.totalTokens, 0);
       assert.equal(snapshot.lastTurnAt, null);
     }),
@@ -101,11 +104,11 @@ describe("UsageAggregator service", () => {
         const snap = yield* aggregator.snapshot;
         assert.equal(snap.fiveHour.totalTokens, 0);
         assert.equal(snap.fiveHour.turnCount, 0);
+        assert.equal(snap.weekly.totalTokens, 0);
+        assert.equal(snap.weekly.turnCount, 0);
         assert.equal(snap.monthly.totalTokens, 0);
       }).pipe(
-        Effect.provide(
-          UsageAggregatorLive.pipe(Layer.provide(makeEngineLayer(Stream.empty))),
-        ),
+        Effect.provide(UsageAggregatorLive.pipe(Layer.provide(makeEngineLayer(Stream.empty)))),
       ),
     ),
   );

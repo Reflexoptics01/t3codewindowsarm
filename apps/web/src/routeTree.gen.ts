@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PairRouteImport } from './routes/pair'
 import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
+import { Route as SettingsSubscriptionRouteImport } from './routes/settings.subscription'
 import { Route as SettingsSourceControlRouteImport } from './routes/settings.source-control'
 import { Route as SettingsProvidersRouteImport } from './routes/settings.providers'
 import { Route as SettingsKeybindingsRouteImport } from './routes/settings.keybindings'
@@ -41,6 +42,11 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ChatRoute,
+} as any)
+const SettingsSubscriptionRoute = SettingsSubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsSourceControlRoute = SettingsSourceControlRouteImport.update({
   id: '/source-control',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/settings/keybindings': typeof SettingsKeybindingsRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
 }
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/settings/keybindings': typeof SettingsKeybindingsRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/': typeof ChatIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/settings/keybindings': typeof SettingsKeybindingsRoute
   '/settings/providers': typeof SettingsProvidersRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/_chat/': typeof ChatIndexRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/_chat/draft/$draftId': typeof ChatDraftDraftIdRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/settings/keybindings'
     | '/settings/providers'
     | '/settings/source-control'
+    | '/settings/subscription'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
   fileRoutesByTo: FileRoutesByTo
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/settings/keybindings'
     | '/settings/providers'
     | '/settings/source-control'
+    | '/settings/subscription'
     | '/'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/settings/keybindings'
     | '/settings/providers'
     | '/settings/source-control'
+    | '/settings/subscription'
     | '/_chat/'
     | '/_chat/$environmentId/$threadId'
     | '/_chat/draft/$draftId'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/settings/subscription': {
+      id: '/settings/subscription'
+      path: '/subscription'
+      fullPath: '/settings/subscription'
+      preLoaderRoute: typeof SettingsSubscriptionRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/source-control': {
       id: '/settings/source-control'
@@ -303,6 +322,7 @@ interface SettingsRouteChildren {
   SettingsKeybindingsRoute: typeof SettingsKeybindingsRoute
   SettingsProvidersRoute: typeof SettingsProvidersRoute
   SettingsSourceControlRoute: typeof SettingsSourceControlRoute
+  SettingsSubscriptionRoute: typeof SettingsSubscriptionRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -313,6 +333,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsKeybindingsRoute: SettingsKeybindingsRoute,
   SettingsProvidersRoute: SettingsProvidersRoute,
   SettingsSourceControlRoute: SettingsSourceControlRoute,
+  SettingsSubscriptionRoute: SettingsSubscriptionRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

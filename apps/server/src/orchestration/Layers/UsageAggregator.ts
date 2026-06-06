@@ -18,6 +18,7 @@ import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { UsageAggregator, type UsageAggregatorShape } from "../Services/UsageAggregator.ts";
 
 const FIVE_HOUR_WINDOW_MS = 5 * 60 * 60 * 1000;
+const WEEKLY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const USAGE_REPUBLISH_INTERVAL_MS = 30_000;
 
 interface TurnUsageDelta {
@@ -112,10 +113,13 @@ function buildSnapshot(args: {
   readonly generatedAtMs: number;
   readonly lastTurnAtMs: number | null;
   readonly fiveHourEntries: ReadonlyArray<TurnUsageDelta>;
+  readonly weeklyEntries: ReadonlyArray<TurnUsageDelta>;
   readonly monthlyEntries: ReadonlyArray<TurnUsageDelta>;
 }): UsageAggregateSnapshot {
   const fiveHourWindowEndMs = args.generatedAtMs;
   const fiveHourWindowStartMs = fiveHourWindowEndMs - FIVE_HOUR_WINDOW_MS;
+  const weeklyWindowEndMs = args.generatedAtMs;
+  const weeklyWindowStartMs = weeklyWindowEndMs - WEEKLY_WINDOW_MS;
   const { start: monthlyStart, end: monthlyEnd } = monthlyWindow(new Date(args.generatedAtMs));
   return {
     generatedAt: formatIsoFromMs(args.generatedAtMs),
@@ -123,18 +127,29 @@ function buildSnapshot(args: {
     fiveHour: {
       windowStart: formatIsoFromMs(fiveHourWindowStartMs),
       windowEnd: formatIsoFromMs(fiveHourWindowEndMs),
+      limitTokens: null,
+      limitResetsAt: null,
       ...tallyWindow(args.fiveHourEntries),
+    },
+    weekly: {
+      windowStart: formatIsoFromMs(weeklyWindowStartMs),
+      windowEnd: formatIsoFromMs(weeklyWindowEndMs),
+      limitTokens: null,
+      limitResetsAt: null,
+      ...tallyWindow(args.weeklyEntries),
     },
     monthly: {
       windowStart: formatIsoFromMs(monthlyStart.getTime()),
       windowEnd: formatIsoFromMs(monthlyEnd.getTime()),
+      limitTokens: null,
+      limitResetsAt: null,
       ...tallyWindow(args.monthlyEntries),
     },
   };
 }
 
 function isUsageWindowKind(value: string): value is UsageWindowKind {
-  return value === "five-hour" || value === "monthly";
+  return value === "five-hour" || value === "weekly" || value === "monthly";
 }
 
 export { isUsageWindowKind };
@@ -143,6 +158,7 @@ const make = Effect.gen(function* () {
   const orchestrationEngine = yield* OrchestrationEngineService;
 
   const fiveHourEntriesRef = yield* Ref.make<ReadonlyArray<TurnUsageDelta>>([]);
+  const weeklyEntriesRef = yield* Ref.make<ReadonlyArray<TurnUsageDelta>>([]);
   const monthlyEntriesRef = yield* Ref.make<ReadonlyArray<TurnUsageDelta>>([]);
   const seenTurnIdsRef = yield* Ref.make<Set<string>>(new Set());
   const lastTurnAtMsRef = yield* Ref.make<number | null>(null);
@@ -151,6 +167,7 @@ const make = Effect.gen(function* () {
       generatedAtMs: 0,
       lastTurnAtMs: null,
       fiveHourEntries: [],
+      weeklyEntries: [],
       monthlyEntries: [],
     }),
   );
@@ -158,17 +175,23 @@ const make = Effect.gen(function* () {
 
   const republishSnapshot = (nowMs: number) =>
     Effect.gen(function* () {
-      const [currentFiveHour, currentMonthly, lastTurnAt] = yield* Effect.all([
+      const [currentFiveHour, currentWeekly, currentMonthly, lastTurnAt] = yield* Effect.all([
         Ref.get(fiveHourEntriesRef),
+        Ref.get(weeklyEntriesRef),
         Ref.get(monthlyEntriesRef),
         Ref.get(lastTurnAtMsRef),
       ]);
       const fiveHourCutoffMs = nowMs - FIVE_HOUR_WINDOW_MS;
+      const weeklyCutoffMs = nowMs - WEEKLY_WINDOW_MS;
       const monthStart = monthlyWindow(new Date(nowMs)).start.getTime();
       const nextFiveHour = pruneWindow(currentFiveHour, fiveHourCutoffMs);
+      const nextWeekly = pruneWindow(currentWeekly, weeklyCutoffMs);
       const nextMonthly = pruneWindow(currentMonthly, monthStart);
       if (nextFiveHour !== currentFiveHour) {
         yield* Ref.set(fiveHourEntriesRef, nextFiveHour);
+      }
+      if (nextWeekly !== currentWeekly) {
+        yield* Ref.set(weeklyEntriesRef, nextWeekly);
       }
       if (nextMonthly !== currentMonthly) {
         yield* Ref.set(monthlyEntriesRef, nextMonthly);
@@ -177,6 +200,7 @@ const make = Effect.gen(function* () {
         generatedAtMs: nowMs,
         lastTurnAtMs: lastTurnAt,
         fiveHourEntries: nextFiveHour,
+        weeklyEntries: nextWeekly,
         monthlyEntries: nextMonthly,
       });
       yield* Ref.set(snapshotRef, snapshot);
@@ -185,12 +209,14 @@ const make = Effect.gen(function* () {
 
   const recordTurnDelta = (delta: TurnUsageDelta) =>
     Effect.gen(function* () {
-      const [seenTurnIds, currentFiveHour, currentMonthly, previousLastTurn] = yield* Effect.all([
-        Ref.get(seenTurnIdsRef),
-        Ref.get(fiveHourEntriesRef),
-        Ref.get(monthlyEntriesRef),
-        Ref.get(lastTurnAtMsRef),
-      ]);
+      const [seenTurnIds, currentFiveHour, currentWeekly, currentMonthly, previousLastTurn] =
+        yield* Effect.all([
+          Ref.get(seenTurnIdsRef),
+          Ref.get(fiveHourEntriesRef),
+          Ref.get(weeklyEntriesRef),
+          Ref.get(monthlyEntriesRef),
+          Ref.get(lastTurnAtMsRef),
+        ]);
       if (seenTurnIds.has(delta.turnId)) {
         return;
       }
@@ -199,8 +225,10 @@ const make = Effect.gen(function* () {
 
       const monthStart = monthlyWindow(new Date(delta.recordedAtMs)).start.getTime();
       const fiveHourCutoffMs = delta.recordedAtMs - FIVE_HOUR_WINDOW_MS;
+      const weeklyCutoffMs = delta.recordedAtMs - WEEKLY_WINDOW_MS;
 
       const nextFiveHour = [...pruneWindow(currentFiveHour, fiveHourCutoffMs), delta];
+      const nextWeekly = [...pruneWindow(currentWeekly, weeklyCutoffMs), delta];
       const nextMonthly = [...pruneWindow(currentMonthly, monthStart), delta];
       const nextLastTurn = Math.max(previousLastTurn ?? delta.recordedAtMs, delta.recordedAtMs);
 
@@ -208,11 +236,13 @@ const make = Effect.gen(function* () {
         generatedAtMs: delta.recordedAtMs,
         lastTurnAtMs: nextLastTurn,
         fiveHourEntries: nextFiveHour,
+        weeklyEntries: nextWeekly,
         monthlyEntries: nextMonthly,
       });
 
       yield* Ref.set(seenTurnIdsRef, nextSeen);
       yield* Ref.set(fiveHourEntriesRef, nextFiveHour);
+      yield* Ref.set(weeklyEntriesRef, nextWeekly);
       yield* Ref.set(monthlyEntriesRef, nextMonthly);
       yield* Ref.set(lastTurnAtMsRef, nextLastTurn);
       yield* Ref.set(snapshotRef, snapshot);
