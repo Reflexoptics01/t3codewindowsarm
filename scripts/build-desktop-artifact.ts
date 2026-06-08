@@ -714,9 +714,10 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     };
     if (signed) {
       winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
-    } else {
-      winConfig.signAndEditExecutable = false;
     }
+    // Keep signAndEditExecutable enabled for unsigned builds so rcedit embeds
+    // icon/version metadata in the .exe. Shortcuts break when the target exe has
+    // no embedded icon and Windows cannot resolve the Start Menu shortcut target.
     buildConfig.win = winConfig;
   }
 

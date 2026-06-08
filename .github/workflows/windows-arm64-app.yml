@@ -44,7 +44,43 @@ jobs:
           git remote add upstream https://github.com/pingdotgg/t3code.git
           git fetch upstream main --tags
           git merge --no-edit upstream/main
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Upstream merge conflicted; aborting merge and building fork code as-is."
+            git merge --abort
+            if ($LASTEXITCODE -ne 0) {
+              git reset --hard HEAD
+            }
+            exit 0
+          }
           git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to push merged upstream changes to main."
+            exit 1
+          }
+
+      - name: Validate package manifests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $manifests = @(
+            "package.json",
+            "apps/desktop/package.json",
+            "apps/server/package.json"
+          )
+          foreach ($manifest in $manifests) {
+            $content = Get-Content $manifest -Raw
+            if ($content -match '<<<<<<<|=======|>>>>>>>') {
+              Write-Error "Merge conflict markers found in $manifest"
+              exit 1
+            }
+            try {
+              $content | ConvertFrom-Json | Out-Null
+            } catch {
+              Write-Error "Invalid JSON in ${manifest}: $_"
+              exit 1
+            }
+          }
+          Write-Host "Package manifests are valid."
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
