@@ -22,14 +22,14 @@ export const BRAND_ASSET_PATHS = {
   developmentWebFavicon32Png: "assets/dev/blueprint-web-favicon-32x32.png",
   developmentWebAppleTouchIconPng: "assets/dev/blueprint-web-apple-touch-180.png",
 
-  arm64MacIconPng: "assets/arm64/arm64-macos-1024.png",
-  arm64LinuxIconPng: "assets/arm64/arm64-universal-1024.png",
-  arm64WindowsIconIco: "assets/arm64/arm64-windows.ico",
-  arm64WindowsIconPng: "assets/arm64/arm64-universal-1024.png",
-  arm64WebFaviconIco: "assets/arm64/arm64-windows.ico",
-  arm64WebFavicon16Png: "assets/arm64/arm64-universal-1024.png",
-  arm64WebFavicon32Png: "assets/arm64/arm64-universal-1024.png",
-  arm64WebAppleTouchIconPng: "assets/arm64/arm64-universal-1024.png",
+  arm64MacIconPng: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
+  arm64LinuxIconPng: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
+  arm64WindowsIconIco: "assets/arm64/arm64-chatgpt-windows.ico",
+  arm64WindowsIconPng: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
+  arm64WebFaviconIco: "assets/arm64/arm64-chatgpt-windows.ico",
+  arm64WebFavicon16Png: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
+  arm64WebFavicon32Png: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
+  arm64WebAppleTouchIconPng: "assets/arm64/ChatGPT Image May 7, 2026, 09_10_25 AM.png",
 } as const;
 
 export type WebAssetBrand = "development" | "nightly" | "production" | "arm64";

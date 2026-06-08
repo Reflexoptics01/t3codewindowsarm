@@ -512,6 +512,27 @@ function stageWindowsIconsFromPng(stageResourcesDir: string, sourcePng: string) 
   });
 }
 
+function stageWindowsInstallerInclude(stageResourcesDir: string) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const installerIncludePath = path.join(stageResourcesDir, "installer.nsh");
+    yield* fs.writeFileString(
+      installerIncludePath,
+      [
+        "!macro customInit",
+        '  ${if} $installMode == "CurrentUser"',
+        '  ${AndIf} $INSTDIR == "$LocalAppData\\Programs\\t3code"',
+        '  ${AndIfNot} ${FileExists} "$INSTDIR\\${APP_EXECUTABLE_FILENAME}"',
+        '    StrCpy $INSTDIR "$LocalAppData\\Programs\\${PRODUCT_FILENAME}"',
+        "  ${endIf}",
+        "!macroend",
+        "",
+      ].join("\n"),
+    );
+  });
+}
+
 function validateBundledClientAssets(clientDir: string) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -729,6 +750,7 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // no embedded icon and Windows cannot resolve the Start Menu shortcut target.
     buildConfig.win = winConfig;
     buildConfig.nsis = {
+      include: "installer.nsh",
       shortcutName: productName,
       uninstallDisplayName: productName,
     };
@@ -759,6 +781,7 @@ const assertPlatformBuildResources = Effect.fn("assertPlatformBuildResources")(f
     }
 
     yield* stageWindowsIcons(stageResourcesDir, iconAssets.windowsIconIco);
+    yield* stageWindowsInstallerInclude(stageResourcesDir);
   }
 });
 
