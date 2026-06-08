@@ -656,6 +656,10 @@ export function resolveDesktopArtifactName(version: string): string {
   return "T3-Code-${version}-${arch}.${ext}";
 }
 
+export function resolveWindowsUnpackedExecutableName(version: string): string {
+  return `${resolveForkWindowsExecutableName(resolveDesktopProductName(version))}.exe`;
+}
+
 const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   platform: typeof BuildPlatform.Type,
   target: string,
@@ -980,6 +984,19 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     return yield* new BuildScriptError({
       message: `Build completed but dist directory was not found at ${stageDistDir}`,
     });
+  }
+
+  if (options.platform === "win") {
+    const expectedExecutable = path.join(
+      stageDistDir,
+      `win-${options.arch}-unpacked`,
+      resolveWindowsUnpackedExecutableName(appVersion),
+    );
+    if (!(yield* fs.exists(expectedExecutable))) {
+      return yield* new BuildScriptError({
+        message: `Windows desktop build did not produce the expected launcher executable at ${expectedExecutable}. Refusing to publish a broken installer shortcut.`,
+      });
+    }
   }
 
   const stageEntries = yield* fs.readDirectory(stageDistDir);

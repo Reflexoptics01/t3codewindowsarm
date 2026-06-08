@@ -12,6 +12,7 @@ import {
   resolveDesktopIconVariant,
   resolveDesktopProductName,
   resolveDesktopUpdateChannel,
+  resolveWindowsUnpackedExecutableName,
   resolveMockUpdateServerPort,
   resolveMockUpdateServerUrl,
 } from "./build-desktop-artifact.ts";
@@ -32,6 +33,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.equal(resolveForkStagePackageName("T3 Code"), "t3code");
     assert.equal(resolveForkWindowsExecutableName("ARM64"), "ARM64");
     assert.equal(resolveForkWindowsExecutableName("T3 Code"), "T3 Code");
+    assert.equal(resolveWindowsUnpackedExecutableName("0.0.24"), "ARM64.exe");
   });
 
   it("defaults desktop packaging product names to the ARM64 fork branding", () => {
