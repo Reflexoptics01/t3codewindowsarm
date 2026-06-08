@@ -24,3 +24,13 @@ export function resolveForkDesktopAppId(): string {
   const override = process.env.T3CODE_DESKTOP_APP_ID?.trim();
   return override && override.length > 0 ? override : FORK_DESKTOP_APP_ID;
 }
+
+/** Stage/install package name for the ARM64 fork (must not reuse upstream `t3code`). */
+export function resolveForkStagePackageName(productName: string): string {
+  return productName === FORK_DESKTOP_PRODUCT_NAME ? "arm64" : "t3code";
+}
+
+/** Windows executable file name (without `.exe`) for electron-builder. */
+export function resolveForkWindowsExecutableName(productName: string): string {
+  return productName === FORK_DESKTOP_PRODUCT_NAME ? FORK_DESKTOP_PRODUCT_NAME : productName;
+}

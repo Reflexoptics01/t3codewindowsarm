@@ -10,6 +10,8 @@ import {
   resolveForkDesktopAppId,
   resolveForkDesktopIconVariant,
   resolveForkDesktopProductName,
+  resolveForkStagePackageName,
+  resolveForkWindowsExecutableName,
 } from "./lib/fork-branding.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
 
@@ -708,9 +710,12 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 
   if (platform === "win") {
     buildConfig.npmRebuild = false;
+    const productName = resolveDesktopProductName(version);
+    const executableName = resolveForkWindowsExecutableName(productName);
     const winConfig: Record<string, unknown> = {
       target: [target],
       icon: "icon.ico",
+      executableName,
     };
     if (signed) {
       winConfig.azureSignOptions = yield* AzureTrustedSigningOptionsConfig;
@@ -719,6 +724,10 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // icon/version metadata in the .exe. Shortcuts break when the target exe has
     // no embedded icon and Windows cannot resolve the Start Menu shortcut target.
     buildConfig.win = winConfig;
+    buildConfig.nsis = {
+      shortcutName: productName,
+      uninstallDisplayName: productName,
+    };
   }
 
   return buildConfig;
@@ -884,7 +893,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
 
   const desktopProductName = resolveDesktopProductName(appVersion);
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    name: resolveForkStagePackageName(desktopProductName),
     version: appVersion,
     buildVersion: appVersion,
     productName: desktopProductName,

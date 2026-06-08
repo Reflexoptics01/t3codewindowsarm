@@ -16,11 +16,22 @@ import {
   resolveMockUpdateServerUrl,
 } from "./build-desktop-artifact.ts";
 import { BRAND_ASSET_PATHS } from "./lib/brand-assets.ts";
+import {
+  resolveForkStagePackageName,
+  resolveForkWindowsExecutableName,
+} from "./lib/fork-branding.ts";
 
 it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   it("resolves the dedicated nightly updater channel from nightly versions", () => {
     assert.equal(resolveDesktopUpdateChannel("0.0.17-nightly.20260413.42"), "nightly");
     assert.equal(resolveDesktopUpdateChannel("0.0.17"), "latest");
+  });
+
+  it("uses distinct ARM64 fork stage and executable names on Windows", () => {
+    assert.equal(resolveForkStagePackageName("ARM64"), "arm64");
+    assert.equal(resolveForkStagePackageName("T3 Code"), "t3code");
+    assert.equal(resolveForkWindowsExecutableName("ARM64"), "ARM64");
+    assert.equal(resolveForkWindowsExecutableName("T3 Code"), "T3 Code");
   });
 
   it("defaults desktop packaging product names to the ARM64 fork branding", () => {
